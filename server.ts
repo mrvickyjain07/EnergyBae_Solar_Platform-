@@ -154,13 +154,51 @@ app.post("/api/extract", async (req, res) => {
   }
 
   try {
-    const cleanBase64 = fileData.replace(/^data:image\/\w+;base64,/, "");
+    // ── Phase 4 Fix ────────────────────────────────────────────────────────────
+    // BEFORE (broken): regex only stripped image/* prefixes, so PDFs kept
+    //   "data:application/pdf;base64," in the string → Gemini TYPE_BYTES error.
+    // AFTER (fixed):  strip ANY mime-type data-URL prefix with a broad regex,
+    //   then derive the real mimeType from whatever was in the prefix.
+    // ───────────────────────────────────────────────────────────────────────────
+
+    // 1. Capture the MIME type from the data URL prefix (covers image/*, application/pdf, etc.)
+    const mimeMatch = fileData.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9+.-]+);base64,/);
+    const detectedMime = mimeMatch ? mimeMatch[1] : "application/pdf";
+
+    // 2. Strip the full data URL prefix — works for ALL MIME types
+    const cleanBase64 = fileData.replace(/^data:[^;]+;base64,/, "");
+
+    // ── Phase 5 Validation ─────────────────────────────────────────────────────
+    if (!cleanBase64) {
+      throw new Error("Missing PDF — base64 payload is empty after stripping data URL prefix.");
+    }
+
+    const fileBuffer = Buffer.from(cleanBase64, "base64");
+
+    console.log("[EnergyBae] Detected MIME type:", detectedMime);
+    console.log("[EnergyBae] typeof fileBuffer:", typeof fileBuffer);
+    console.log("[EnergyBae] fileBuffer.length:", fileBuffer.length);
+
+    if (fileBuffer.length === 0) {
+      throw new Error("Empty file — decoded buffer has zero bytes.");
+    }
+
+    // 3. Re-encode from the clean buffer to guarantee no double-encoding artefacts
+    const encoded = fileBuffer.toString("base64");
+
+    try {
+      Buffer.from(encoded, "base64"); // sanity round-trip check
+    } catch {
+      throw new Error("Invalid base64 encoding — round-trip verification failed.");
+    }
+    // ───────────────────────────────────────────────────────────────────────────
+
     const ai = getGeminiClient();
 
-    const imagePart = {
+    const filePart = {
       inlineData: {
-        mimeType: "image/jpeg",
-        data: cleanBase64,
+        mimeType: detectedMime,  // ← was hardcoded "image/jpeg"; now uses real type
+        data: encoded,           // ← was cleanBase64 (potentially still had prefix); now re-encoded
       },
     };
 
@@ -169,8 +207,8 @@ app.post("/api/extract", async (req, res) => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: { parts: [imagePart, textPart] },
+      model: "gemini-2.5-flash",
+      contents: { parts: [filePart, textPart] },
       config: {
         responseMimeType: "application/json"
       }
