@@ -538,9 +538,20 @@ export default function App() {
                       {errorMsg && (
                         <div className="p-4 bg-red-950/25 border border-red-900/40 rounded-2xl flex items-start gap-3.5 text-xs text-red-300">
                           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
-                          <div>
-                            <span className="font-bold block">Extraction Halt Exception:</span>
-                            <span className="font-mono text-[11px] block mt-1 leading-normal">{errorMsg}</span>
+                          <div className="space-y-1.5 flex-1 min-w-0">
+                            <span className="font-bold block text-red-200">Extraction Failed</span>
+                            <span className="font-mono text-[11px] block leading-relaxed whitespace-pre-wrap break-words">{errorMsg}</span>
+                            <div className="flex items-center gap-2 pt-1.5 border-t border-red-900/30 mt-2">
+                              <button
+                                type="button"
+                                onClick={handleExtractClick}
+                                disabled={isLoading || !fileData}
+                                className="px-3 py-1.5 rounded-lg bg-red-900/30 border border-red-800/50 text-red-300 hover:text-white hover:bg-red-900/50 text-[10px] font-semibold font-mono transition cursor-pointer disabled:opacity-40"
+                              >
+                                ↺ Retry Extraction
+                              </button>
+                              <span className="text-[10px] text-red-500 font-mono">Or try the sample bill to test the pipeline.</span>
+                            </div>
                           </div>
                         </div>
                       )}

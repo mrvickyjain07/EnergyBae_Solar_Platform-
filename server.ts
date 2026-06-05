@@ -1,8 +1,13 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import * as xlsx from "xlsx";
+import dotenv from "dotenv";
+
+// Load .env.local (development) and fall back to .env
+dotenv.config({ path: ".env.local" });
+dotenv.config(); // also load .env if present
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,12 +28,83 @@ function getGeminiClient(): GoogleGenAI {
       apiKey: apiKey || "MOCK_KEY",
       httpOptions: {
         headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
+          "User-Agent": "aistudio-build",
+        },
+      },
     });
   }
   return geminiClient;
+}
+
+// ─── Retry utility ──────────────────────────────────────────────────────────
+// Returns true if the error is a transient model-side issue (503, rate limit,
+// quota exceeded, or network reset) that is worth retrying.
+function isTransientError(err: any): boolean {
+  const msg: string = (err?.message || err?.toString() || "").toLowerCase();
+  const status: number | undefined = err?.status ?? err?.code;
+
+  // HTTP 503, 429 (rate-limit) or explicit UNAVAILABLE status from Gemini SDK
+  if (status === 503 || status === 429) return true;
+  // Gemini SDK wraps errors as { error: { code: 503, status: "UNAVAILABLE" } }
+  if (msg.includes("503") || msg.includes("unavailable") || msg.includes("overloaded")) return true;
+  if (msg.includes("429") || msg.includes("rate") || msg.includes("quota")) return true;
+  if (msg.includes("econnreset") || msg.includes("etimedout") || msg.includes("socket")) return true;
+  return false;
+}
+
+// Exponential-backoff retry wrapper.
+// maxAttempts: total attempts (first call + retries).
+// baseDelayMs: initial wait before first retry (doubles each retry).
+async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  maxAttempts = 4,
+  baseDelayMs = 2000
+): Promise<T> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      if (attempt > 1) {
+        console.log(`[EnergyBae][${label}] Retry attempt ${attempt}/${maxAttempts}...`);
+      }
+      const result = await fn();
+      if (attempt > 1) {
+        console.log(`[EnergyBae][${label}] Succeeded on attempt ${attempt}.`);
+      }
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      const errMsg: string = err?.message || String(err);
+      console.warn(`[EnergyBae][${label}] Attempt ${attempt} failed: ${errMsg}`);
+
+      if (!isTransientError(err)) {
+        console.error(`[EnergyBae][${label}] Non-transient error — will not retry.`);
+        throw err;
+      }
+      if (attempt < maxAttempts) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1); // 2s, 4s, 8s
+        console.log(`[EnergyBae][${label}] Transient error. Waiting ${delay}ms before retry...`);
+        await new Promise((res) => setTimeout(res, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
+// ─── PDF page-count detector (pure Buffer — no external library needed) ──────
+// Scans the raw PDF bytes for "/Type /Page" dictionary entries, which appear
+// once per page object in both digitally-generated and scanned PDFs.
+// Falls back to 1 if the pattern is not found (e.g. for images).
+function detectPdfPageCount(buffer: Buffer): number {
+  try {
+    const text = buffer.toString("latin1"); // latin1 is safe for binary scan
+    // Count occurrences of "/Type /Page" or "/Type/Page" (PDF spec allows both)
+    const matches = text.match(/\/Type\s*\/Page[^s]/g);
+    const count = matches ? matches.length : 0;
+    return count > 0 ? count : 1;
+  } catch {
+    return 1;
+  }
 }
 
 // Structured prompt for electricity bill extraction
@@ -133,10 +209,12 @@ app.get("/api/status", (req, res) => {
 app.post("/api/extract", async (req, res) => {
   const { fileData, fileName, isSample } = req.body;
 
-  console.log(`Processing extraction request: ${fileName || "unnamed file"} (IsSample: ${isSample})`);
+  console.log(`[EnergyBae] ── New extraction request ──────────────────────────────`);
+  console.log(`[EnergyBae] File: "${fileName || "unnamed file"}" | isSample: ${isSample}`);
 
   // Fast-track sample bill
   if (isSample || fileName === "Samplebill1.jpeg" || !fileData) {
+    console.log("[EnergyBae] Fast-tracking sample bill — returning cached data.");
     return res.json({
       success: true,
       confidenceScore: 97.4,
@@ -149,88 +227,171 @@ app.post("/api/extract", async (req, res) => {
   if (!apiKey) {
     return res.status(400).json({
       success: false,
-      error: "Gemini API key is missing. Deploying with correct secrets or use sample bill to test."
+      error: "Gemini API key is missing. Please configure it in Secrets or use the sample bill to test."
     });
   }
 
   try {
-    // ── Phase 4 Fix ────────────────────────────────────────────────────────────
-    // BEFORE (broken): regex only stripped image/* prefixes, so PDFs kept
-    //   "data:application/pdf;base64," in the string → Gemini TYPE_BYTES error.
-    // AFTER (fixed):  strip ANY mime-type data-URL prefix with a broad regex,
-    //   then derive the real mimeType from whatever was in the prefix.
-    // ───────────────────────────────────────────────────────────────────────────
-
-    // 1. Capture the MIME type from the data URL prefix (covers image/*, application/pdf, etc.)
+    // ── 1. Decode MIME type and strip data URL prefix ──────────────────────────
+    // Handles image/*, application/pdf, and any future MIME type correctly.
     const mimeMatch = fileData.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9+.-]+);base64,/);
     const detectedMime = mimeMatch ? mimeMatch[1] : "application/pdf";
-
-    // 2. Strip the full data URL prefix — works for ALL MIME types
     const cleanBase64 = fileData.replace(/^data:[^;]+;base64,/, "");
 
-    // ── Phase 5 Validation ─────────────────────────────────────────────────────
     if (!cleanBase64) {
-      throw new Error("Missing PDF — base64 payload is empty after stripping data URL prefix.");
+      throw new Error("Base64 payload is empty after stripping the data URL prefix.");
     }
 
     const fileBuffer = Buffer.from(cleanBase64, "base64");
 
     console.log("[EnergyBae] Detected MIME type:", detectedMime);
-    console.log("[EnergyBae] typeof fileBuffer:", typeof fileBuffer);
-    console.log("[EnergyBae] fileBuffer.length:", fileBuffer.length);
+    console.log(`[EnergyBae] Decoded file buffer size: ${fileBuffer.length} bytes`);
 
     if (fileBuffer.length === 0) {
       throw new Error("Empty file — decoded buffer has zero bytes.");
     }
 
-    // 3. Re-encode from the clean buffer to guarantee no double-encoding artefacts
-    const encoded = fileBuffer.toString("base64");
+    // ── 2. Page count detection (pure Buffer scan — no extra library needed) ───
+    const isPdf = detectedMime === "application/pdf";
+    const pageCount = isPdf ? detectPdfPageCount(fileBuffer) : 1;
+    console.log(`[EnergyBae] Document type: ${isPdf ? "PDF" : "Image"} | Pages detected: ${pageCount}`);
 
+    if (pageCount === 1) {
+      console.log("[EnergyBae] Single-page document — proceeding with standard extraction.");
+    } else {
+      console.log(`[EnergyBae] Multi-page PDF (${pageCount} pages) — Gemini 2.5-flash handles multi-page PDFs natively. Sending full document.`);
+    }
+
+    // ── 3. File size guard (Gemini inline data limit is ~20 MB) ───────────────
+    const fileSizeMB = fileBuffer.length / (1024 * 1024);
+    console.log(`[EnergyBae] File size: ${fileSizeMB.toFixed(2)} MB`);
+    if (fileSizeMB > 20) {
+      return res.status(413).json({
+        success: false,
+        error: `File too large (${fileSizeMB.toFixed(1)} MB). Please upload a PDF under 20 MB. For large scanned PDFs, try compressing the file or splitting pages before uploading.`
+      });
+    }
+
+    // ── 4. Re-encode to guarantee no double-encoding artifacts ─────────────────
+    const encoded = fileBuffer.toString("base64");
     try {
       Buffer.from(encoded, "base64"); // sanity round-trip check
     } catch {
-      throw new Error("Invalid base64 encoding — round-trip verification failed.");
+      throw new Error("Invalid base64 encoding detected — round-trip verification failed.");
     }
-    // ───────────────────────────────────────────────────────────────────────────
 
     const ai = getGeminiClient();
 
     const filePart = {
       inlineData: {
-        mimeType: detectedMime,  // ← was hardcoded "image/jpeg"; now uses real type
-        data: encoded,           // ← was cleanBase64 (potentially still had prefix); now re-encoded
+        mimeType: detectedMime,
+        data: encoded,
       },
     };
+    const textPart = { text: MSEDCL_PROMPT };
 
-    const textPart = {
-      text: MSEDCL_PROMPT,
-    };
+    // ── 5. Gemini OCR call with exponential-backoff retry ──────────────────────
+    // Strategy: send the FULL document (Gemini 2.5-flash natively understands
+    // multi-page PDFs). If the model returns 503 / UNAVAILABLE / rate-limit,
+    // retry up to 4 times total with 2 s → 4 s → 8 s delays.
+    // This makes the pipeline robust against transient demand spikes without
+    // requiring any page splitting or external PDF library.
+    console.log(`[EnergyBae] Sending document to Gemini 2.5-flash (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)...`);
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: { parts: [filePart, textPart] },
-      config: {
-        responseMimeType: "application/json"
-      }
-    });
+    const response = await withRetry(
+      `Gemini-OCR-${pageCount}pg`,
+      () =>
+        ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: { parts: [filePart, textPart] },
+          config: {
+            responseMimeType: "application/json",
+          },
+        }),
+      4,     // max 4 total attempts
+      2000   // base delay: 2 s (doubles each retry: 2 s, 4 s, 8 s)
+    );
 
-    const parsedJson = JSON.parse(response.text || "{}");
-    
-    // Add minor check thresholds for validation state
+    console.log("[EnergyBae] ✓ Gemini response received — parsing JSON...");
+
+    // ── 6. Parse the model response robustly ───────────────────────────────────
+    let parsedJson: any = {};
+    const rawText = response.text || "";
+
+    try {
+      // Strip optional markdown code fences that the model occasionally adds
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+      parsedJson = JSON.parse(cleaned || "{}");
+    } catch (parseErr: any) {
+      console.error("[EnergyBae] JSON parse error:", parseErr.message);
+      console.error("[EnergyBae] Raw model text (first 500 chars):", rawText.substring(0, 500));
+      throw new Error(
+        "The AI model returned a response that could not be parsed as JSON. " +
+        "This usually happens when the bill scan quality is too low, the document is password-protected, " +
+        "or the file contains non-bill content. Please try a clearer scan."
+      );
+    }
+
+    const historyCount = Array.isArray(parsedJson.billingHistory) ? parsedJson.billingHistory.length : 0;
+    console.log(`[EnergyBae] ✓ Extraction complete.`);
+    console.log(`[EnergyBae]   Consumer:    ${parsedJson.consumerName || "(not found)"}`);
+    console.log(`[EnergyBae]   Meter No:    ${parsedJson.meterNumber || "(not found)"}`);
+    console.log(`[EnergyBae]   Bill Month:  ${parsedJson.billingMonth || "(not found)"}`);
+    console.log(`[EnergyBae]   History:     ${historyCount} month(s) extracted`);
+
     res.json({
       success: true,
       confidenceScore: 89.2,
-      data: parsedJson
+      pageCount,
+      data: parsedJson,
     });
 
   } catch (error: any) {
-    console.error("Gemini Vision parsing failed:", error);
+    const rawMessage: string = error?.message || String(error);
+    console.error("[EnergyBae] ✗ Extraction failed:", rawMessage);
+
+    // ── User-friendly error classification ────────────────────────────────────
+    // Never expose raw Gemini API error JSON (like the 503 JSON blob) to the UI.
+    let userMessage: string;
+
+    if (isTransientError(error)) {
+      userMessage =
+        "The AI model is experiencing high demand and did not respond after 4 retry attempts. " +
+        "This is a temporary issue on Google's side. Please wait 1–2 minutes and try again. " +
+        "(Tip: If this keeps happening, try the sample bill to verify the rest of the pipeline is working.)";
+    } else if (
+      rawMessage.toLowerCase().includes("api key") ||
+      rawMessage.toLowerCase().includes("unauthorized") ||
+      rawMessage.toLowerCase().includes("invalid key")
+    ) {
+      userMessage =
+        "API key error — the Gemini API key is invalid or not authorised. " +
+        "Please verify your GEMINI_API_KEY in the environment Secrets panel.";
+    } else if (rawMessage.toLowerCase().includes("quota")) {
+      userMessage =
+        "API quota exceeded for this billing period. " +
+        "Please check your Google AI Studio quota limits or try again after the quota resets.";
+    } else if (rawMessage.toLowerCase().includes("too large") || rawMessage.toLowerCase().includes("413")) {
+      userMessage = rawMessage;
+    } else if (rawMessage.toLowerCase().includes("could not be parsed") || rawMessage.toLowerCase().includes("parse")) {
+      userMessage = rawMessage;
+    } else {
+      userMessage =
+        "The AI vision scanner encountered an unexpected error while reading this bill. " +
+        "Please try a clearer scan, a different file format, or contact support if the issue persists. " +
+        `(Detail: ${rawMessage})`;
+    }
+
     res.status(500).json({
       success: false,
-      error: error.message || "Deep vision scanner encountered an error reading the bill."
+      error: userMessage,
     });
   }
 });
+
 
 // API Endpoint - Export to real Excel file (Fidelity side-by-side template matches Pranay HOME exactly)
 app.post("/api/download-excel", (req, res) => {
