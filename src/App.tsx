@@ -42,7 +42,7 @@ import {
 export default function App() {
   // Navigation tab states ('overview' | 'ocr' | 'sizing')
   const [activeTab, setActiveTab] = useState<'overview' | 'ocr' | 'sizing'>('overview');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(true);
 
   // Config states
   const [confidenceThreshold, setConfidenceThreshold] = useState<number>(0.8);
@@ -248,11 +248,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#040810] font-sans antialiased text-slate-300">
+    <div className="flex h-screen w-screen overflow-hidden bg-[var(--bg-primary)] font-sans antialiased text-[var(--text-primary)] transition-colors duration-300">
       
       {/* Dynamic ambient glowing orbs */}
-      <div className="absolute top-10 left-10 w-[450px] h-[450px] rounded-full bg-emerald-500/5 orb-glow pointer-events-none select-none"></div>
-      <div className="absolute bottom-20 right-10 w-[550px] h-[550px] rounded-full bg-sky-500/5 orb-glow pointer-events-none select-none"></div>
+      <div className="absolute top-10 left-10 w-[450px] h-[450px] rounded-full bg-[var(--accent-green)]/5 orb-glow pointer-events-none select-none"></div>
+      <div className="absolute bottom-20 right-10 w-[550px] h-[550px] rounded-full bg-[var(--accent-blue)]/5 orb-glow pointer-events-none select-none"></div>
 
       {/* 1. Collapsible Sidebar Component */}
       <Sidebar 
@@ -288,15 +288,15 @@ export default function App() {
             <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/40 p-4 rounded-2xl border border-slate-800/60 shadow-lg backdrop-blur-md"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[var(--bg-surface)]/80 p-4 rounded-2xl border border-[var(--border-subtle)] shadow-lg backdrop-blur-md transition-colors duration-300"
             >
               <div className="flex items-center space-x-3.5 min-w-0">
-                <div className="p-3 bg-sky-950/45 rounded-xl border border-sky-800/40 text-sky-400">
-                  <FileSpreadsheet className="w-5 h-5 text-sky-400" />
+                <div className="p-3 bg-[var(--accent-blue)]/10 rounded-xl border border-[var(--accent-blue)]/20 text-[var(--accent-blue)]">
+                  <FileSpreadsheet className="w-5 h-5 text-[var(--accent-blue)]" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] text-slate-500 font-mono block tracking-widest leading-none uppercase">Source Document</span>
-                  <span className="text-sm text-slate-150 font-bold tracking-tight block mt-1 truncate">{fileName}</span>
+                  <span className="text-[10px] text-[var(--text-muted)] font-mono block tracking-widest leading-none uppercase">Source Document</span>
+                  <span className="text-sm text-[var(--text-primary)] font-bold tracking-tight block mt-1 truncate">{fileName}</span>
                 </div>
               </div>
 
@@ -304,7 +304,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="px-4 py-2 rounded-xl border border-slate-800 hover:border-red-900/30 text-xs font-semibold font-display text-slate-400 hover:text-red-400 flex items-center gap-1.5 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-[var(--border-strong)] hover:border-red-900/30 text-xs font-semibold font-display text-[var(--text-secondary)] hover:text-red-400 flex items-center gap-1.5 transition cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Clear Document
                 </button>
@@ -337,10 +337,10 @@ export default function App() {
                 className="space-y-8"
               >
                 {/* Hero section landing banner */}
-                <div className="relative rounded-3xl p-8 md:p-10 border border-slate-800/70 overflow-hidden bg-gradient-to-b from-[#0e1627]/80 to-[#070b13]/80 shadow-2xl backdrop-blur-xl">
+                <div className="relative rounded-3xl p-8 md:p-10 border border-[var(--border-subtle)] overflow-hidden bg-[var(--bg-surface)] shadow-2xl backdrop-blur-xl transition-colors duration-300">
                   {/* Decorative glowing background mesh */}
-                  <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-sky-500/5 blur-3xl pointer-events-none"></div>
-                  <div className="absolute bottom-0 left-10 w-60 h-60 rounded-full bg-emerald-500/5 blur-2xl pointer-events-none"></div>
+                  <div className="absolute top-0 right-0 w-80 h-80 rounded-full bg-[var(--accent-blue)]/5 blur-3xl pointer-events-none"></div>
+                  <div className="absolute bottom-0 left-10 w-60 h-60 rounded-full bg-[var(--accent-green)]/5 blur-2xl pointer-events-none"></div>
 
                   <div className="max-w-2xl space-y-4">
                     <div className="inline-flex items-center space-x-2 px-3 py-1 bg-sky-950/40 rounded-full border border-sky-500/10 text-sky-400 text-xs font-mono font-medium tracking-wide">
@@ -348,11 +348,11 @@ export default function App() {
                       <span>Next-Generation Energy Intelligence</span>
                     </div>
 
-                    <h2 className="text-3xl md:text-5xl font-extrabold font-display leading-tight text-white tracking-tight">
-                      Simplify Solar Load Sizing With <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">Cognitive AI</span>
+                    <h2 className="text-3xl md:text-5xl font-extrabold font-display leading-tight text-[var(--text-primary)] tracking-tight transition-colors duration-300">
+                      Simplify Solar Load Sizing With <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-blue)] to-[var(--accent-green)]">Cognitive AI</span>
                     </h2>
 
-                    <p className="text-sm md:text-base text-slate-450 leading-relaxed max-w-xl">
+                    <p className="text-sm md:text-base text-[var(--text-secondary)] leading-relaxed max-w-xl transition-colors duration-300">
                       EnergyBae programmatically extracts raw high-contrast consumer bills, conducts micro-tariff audits, and compiles precision relational Excel workbook sheets instantly.
                     </p>
 
@@ -365,7 +365,7 @@ export default function App() {
                       </button>
                       <button
                         onClick={handleRunSample}
-                        className="px-5 py-3 rounded-2xl border border-slate-800 text-slate-400 hover:text-white transition text-xs font-semibold font-display cursor-pointer"
+                        className="px-5 py-3 rounded-2xl border border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition text-xs font-semibold font-display cursor-pointer"
                       >
                         Try with Sample Bill
                       </button>
@@ -375,9 +375,9 @@ export default function App() {
 
                 {/* Workflow Roadmap steps design */}
                 <div className="space-y-4">
-                  <div className="text-center md:text-left">
-                    <h3 className="text-base font-extrabold font-display text-white tracking-wide uppercase">Interactive Workflow Checklist</h3>
-                    <p className="text-xs text-slate-500">Fast, streamlined sequence calculated to deliver robust results.</p>
+                  <div className="text-center md:text-left transition-colors duration-300">
+                    <h3 className="text-base font-extrabold font-display text-[var(--text-primary)] tracking-wide uppercase">Interactive Workflow Checklist</h3>
+                    <p className="text-xs text-[var(--text-muted)]">Fast, streamlined sequence calculated to deliver robust results.</p>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -389,16 +389,16 @@ export default function App() {
                     ].map((item, id) => {
                       const Icon = item.icon;
                       return (
-                        <div key={id} className="glass-panel p-6 rounded-2xl border-slate-800/60 leading-relaxed text-left flex flex-col justify-between aspect-[4/3] group hover:border-slate-700/60 transition-all duration-300">
+                        <div key={id} className="glass-panel p-6 rounded-2xl border-[var(--border-subtle)] leading-relaxed text-left flex flex-col justify-between aspect-[4/3] group hover:border-[var(--border-strong)] transition-all duration-300">
                           <div className="flex items-center justify-between">
-                            <span className="text-lg font-mono font-bold text-slate-600">{item.step}</span>
+                            <span className="text-lg font-mono font-bold text-[var(--text-secondary)]">{item.step}</span>
                             <div className={`p-2 rounded-xl border ${item.color}`}>
                               <Icon className="w-4 h-4" />
                             </div>
                           </div>
                           <div>
-                            <h4 className="text-sm font-bold font-display text-slate-200 mt-2">{item.title}</h4>
-                            <p className="text-[11px] text-slate-400 mt-1 lines-clamp-3 leading-normal">{item.desc}</p>
+                            <h4 className="text-sm font-bold font-display text-[var(--text-primary)] mt-2">{item.title}</h4>
+                            <p className="text-[11px] text-[var(--text-muted)] mt-1 lines-clamp-3 leading-normal">{item.desc}</p>
                           </div>
                         </div>
                       );
@@ -409,9 +409,9 @@ export default function App() {
                 {/* Initial Quickstart Upload Hub */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                   <div className="space-y-4">
-                    <div className="text-left">
-                      <h3 className="text-base font-bold font-display text-white tracking-wide uppercase">Get Started</h3>
-                      <p className="text-xs text-slate-500 font-mono">Upload a bill to begin processing.</p>
+                    <div className="text-left transition-colors duration-300">
+                      <h3 className="text-base font-bold font-display text-[var(--text-primary)] tracking-wide uppercase">Get Started</h3>
+                      <p className="text-xs text-[var(--text-muted)] font-mono">Upload a bill to begin processing.</p>
                     </div>
                     <Uploader 
                       onFileLoaded={handleFileLoaded}
@@ -422,33 +422,33 @@ export default function App() {
                   </div>
 
                   {/* Aesthetic visual features card */}
-                  <div className="glass-panel rounded-3xl p-6 border-slate-800/50 bg-[#070c14]/40 flex flex-col justify-between text-left h-full md:min-h-[350px]">
+                  <div className="glass-panel rounded-3xl p-6 bg-[var(--bg-card)] flex flex-col justify-between text-left h-full md:min-h-[350px] transition-colors duration-300">
                     <div className="space-y-4">
-                      <div className="inline-flex items-center px-2.5 py-1 bg-emerald-950/35 text-emerald-400 border border-emerald-500/10 text-[10px] font-mono rounded">
+                      <div className="inline-flex items-center px-2.5 py-1 bg-[var(--accent-green)]/10 text-[var(--accent-green)] border border-[var(--accent-green)]/20 text-[10px] font-mono rounded transition-colors duration-300">
                         COMPLIANCE ASSURED
                       </div>
-                      <h4 className="text-lg font-bold font-display text-white leading-tight">Maharashtra State Solar Grid Sizing Matrix</h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">
+                      <h4 className="text-lg font-bold font-display text-[var(--text-primary)] leading-tight">Maharashtra State Solar Grid Sizing Matrix</h4>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                         The recommendation engine aligns with high-tech rules mapping. Built specifically for MSEDCL single-phase and multi-phase LT consumer guidelines, ensuring your proposals are 100% realistic and accurate.
                       </p>
                       
-                      <div className="space-y-2 pt-2 border-t border-slate-800/40 text-[11px] text-slate-400 font-mono">
+                      <div className="space-y-2 pt-2 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] font-mono transition-colors duration-300">
                         <div className="flex items-center justify-between">
                           <span>Slab Rate Estimation:</span>
-                          <span className="text-white">LT-I Residential Gird</span>
+                          <span className="text-[var(--text-primary)]">LT-I Residential Gird</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Solar Peak Insolation:</span>
-                          <span className="text-white">Maharashtra (4.8 hrs/day)</span>
+                          <span className="text-[var(--text-primary)]">Maharashtra (4.8 hrs/day)</span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span>Estimated Solar Yield:</span>
-                          <span className="text-emerald-400 font-semibold font-sans">~1350 kWh/kWp Yr</span>
+                          <span className="text-[var(--accent-green)] font-semibold font-sans">~1350 kWh/kWp Yr</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="pt-6 text-[10px] text-slate-500 font-mono flex items-center justify-between">
+                    <div className="pt-6 text-[10px] text-[var(--text-muted)] font-mono flex items-center justify-between transition-colors duration-300">
                       <span>SECURE LOGIC COMPILER</span>
                       <span>ACTIVE v2.4</span>
                     </div>
@@ -469,16 +469,16 @@ export default function App() {
               >
                 {/* Loading state rendering screen layout */}
                 {isLoading ? (
-                  <div className="glass-panel rounded-3xl p-8 md:p-12 border-slate-800/80 bg-[#080d15]/60 flex flex-col items-center justify-center space-y-8 min-h-[440px] relative overflow-hidden">
+                  <div className="glass-panel rounded-3xl p-8 md:p-12 bg-[var(--bg-card)] flex flex-col items-center justify-center space-y-8 min-h-[440px] relative overflow-hidden transition-colors duration-300">
                     {/* Pulsing solar center */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-sky-500/5 blur-3xl animate-pulse pointer-events-none"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 rounded-full bg-[var(--accent-blue)]/5 blur-3xl animate-pulse pointer-events-none"></div>
 
-                    <div className="space-y-2.5 text-center relative z-10">
-                      <div className="w-16 h-16 rounded-full border-2 border-slate-800 border-t-sky-400 animate-spin flex items-center justify-center mx-auto mb-4">
+                    <div className="space-y-2.5 text-center relative z-10 transition-colors duration-300">
+                      <div className="w-16 h-16 rounded-full border-2 border-[var(--border-subtle)] border-t-[var(--accent-blue)] animate-spin flex items-center justify-center mx-auto mb-4">
                         <Sun className="w-8 h-8 text-amber-400 animate-pulse" />
                       </div>
-                      <h3 className="text-lg font-bold font-display text-white tracking-tight">AI OCR Engine Compiling</h3>
-                      <p className="text-xs text-sky-400 font-mono tracking-wide">{pipelineStage}</p>
+                      <h3 className="text-lg font-bold font-display text-[var(--text-primary)] tracking-tight">AI OCR Engine Compiling</h3>
+                      <p className="text-xs text-[var(--accent-blue)] font-mono tracking-wide">{pipelineStage}</p>
                     </div>
 
                     {/* Progress tracking bars */}
@@ -496,7 +496,7 @@ export default function App() {
                     </div>
 
                     {/* Interactive terminal sequence list */}
-                    <div className="w-full max-w-sm space-y-2.5 font-mono text-[11px] text-slate-500 relative z-10 pt-2 border-t border-slate-800/30">
+                    <div className="w-full max-w-sm space-y-2.5 font-mono text-[11px] text-[var(--text-muted)] relative z-10 pt-2 border-t border-[var(--border-subtle)] transition-colors duration-300">
                       {[
                         { step: "Ingesting raw pixels data & vectors", threshold: 15 },
                         { step: "AI Cognitive Multimodal Parsing", threshold: 40 },
@@ -506,14 +506,14 @@ export default function App() {
                         <div key={idx} className="flex items-center justify-between">
                           <span>{idx + 1}. {s.step}</span>
                           {progress >= s.threshold ? (
-                            <span className="text-emerald-400 font-bold flex items-center"><Check className="w-3.5 h-3.5 mr-1" /> COMPLETED</span>
+                            <span className="text-[var(--accent-green)] font-bold flex items-center"><Check className="w-3.5 h-3.5 mr-1" /> COMPLETED</span>
                           ) : progress >= (s.threshold - 20) ? (
-                            <span className="text-sky-400 animate-pulse flex items-center">
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-450 mr-1.5 animate-ping"></span>
+                            <span className="text-[var(--accent-blue)] animate-pulse flex items-center">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-blue)] mr-1.5 animate-ping"></span>
                               RUNNING
                             </span>
                           ) : (
-                            <span className="text-slate-800">PENDING</span>
+                            <span className="text-[var(--text-secondary)]">PENDING</span>
                           )}
                         </div>
                       ))}
@@ -523,9 +523,9 @@ export default function App() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     {/* Left Column: Upload box parameters */}
                     <div className="space-y-6">
-                      <div className="text-left">
-                        <h3 className="text-base font-bold font-display text-white tracking-wide uppercase">AI Bill Extraction</h3>
-                        <p className="text-xs text-slate-500 font-mono">Load an MSEDCL billing document to feed into the scanner.</p>
+                      <div className="text-left transition-colors duration-300">
+                        <h3 className="text-base font-bold font-display text-[var(--text-primary)] tracking-wide uppercase">AI Bill Extraction</h3>
+                        <p className="text-xs text-[var(--text-muted)] font-mono">Load an MSEDCL billing document to feed into the scanner.</p>
                       </div>
                       <Uploader 
                         onFileLoaded={handleFileLoaded}
@@ -558,58 +558,58 @@ export default function App() {
                     </div>
 
                     {/* Right Column: Visual utility bill mockup scanner display */}
-                    <div className="glass-panel rounded-3xl p-6 border-slate-800/80 bg-[#080d15]/50 flex flex-col justify-between items-center relative overflow-hidden min-h-[380px] group select-none">
-                      <div className="absolute top-2 left-6 text-[9px] text-slate-600 font-mono tracking-wider lowercase">MSEDCL_RECEIPT_SCANNER_FRAME</div>
+                    <div className="glass-panel rounded-3xl p-6 bg-[var(--bg-card)] flex flex-col justify-between items-center relative overflow-hidden min-h-[380px] group select-none transition-colors duration-300">
+                      <div className="absolute top-2 left-6 text-[9px] text-[var(--text-muted)] font-mono tracking-wider lowercase transition-colors duration-300">MSEDCL_RECEIPT_SCANNER_FRAME</div>
                       
                       {/* Stylized bill scanner representation */}
-                      <div className="w-full max-w-[310px] aspect-[3/4] bg-slate-900/60 rounded-xl p-4.5 border border-slate-850 overflow-hidden text-[10px] flex flex-col justify-between font-mono leading-tight shadow-2xl relative mt-4">
+                      <div className="w-full max-w-[310px] aspect-[3/4] bg-[var(--hover-bg)] rounded-xl p-4.5 border border-[var(--border-strong)] overflow-hidden text-[10px] flex flex-col justify-between font-mono leading-tight shadow-2xl relative mt-4 transition-colors duration-300">
                         
                         {/* Target reticle scan lines */}
-                        <div className="absolute inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-sky-400 to-transparent top-1/4 shadow-[0_0_8px_rgba(56,189,248,0.7)] pointer-events-none animate-bounce"></div>
+                        <div className="absolute inset-x-0 h-[1.5px] bg-gradient-to-r from-transparent via-[var(--accent-blue)] to-transparent top-1/4 shadow-[0_0_8px_rgba(56,189,248,0.7)] pointer-events-none animate-bounce"></div>
 
                         {/* High-contrast header */}
-                        <div className="border-b border-slate-800 pb-2 flex items-center justify-between text-slate-300">
+                        <div className="border-b border-[var(--border-subtle)] pb-2 flex items-center justify-between text-[var(--text-primary)] transition-colors duration-300">
                           <div>
-                            <h4 className="font-bold text-xs text-white">MSEDCL / महावितरण</h4>
-                            <p className="text-[7px] text-slate-500 mt-0.5 lowercase font-mono">bill_ocr_payload_matrix</p>
+                            <h4 className="font-bold text-xs">MSEDCL / महावितरण</h4>
+                            <p className="text-[7px] text-[var(--text-muted)] mt-0.5 lowercase font-mono">bill_ocr_payload_matrix</p>
                           </div>
-                          <div className="w-5 h-5 bg-sky-500/20 text-sky-400 rounded border border-sky-500/30 flex items-center justify-center text-[9px] font-bold">M</div>
+                          <div className="w-5 h-5 bg-[var(--accent-blue)]/10 text-[var(--accent-blue)] rounded border border-[var(--accent-blue)]/30 flex items-center justify-center text-[9px] font-bold">M</div>
                         </div>
 
                         {/* Content lines */}
-                        <div className="my-3 space-y-2.5 flex-1 text-[9px] text-slate-400 relative">
-                          <div className="flex justify-between border-b border-slate-950 pb-1">
-                            <span className="text-slate-500">Consumer No:</span>
-                            <span className="font-bold text-white">082050016140</span>
+                        <div className="my-3 space-y-2.5 flex-1 text-[9px] text-[var(--text-secondary)] relative transition-colors duration-300">
+                          <div className="flex justify-between border-b border-[var(--border-subtle)] pb-1">
+                            <span className="text-[var(--text-muted)]">Consumer No:</span>
+                            <span className="font-bold text-[var(--text-primary)]">082050016140</span>
                           </div>
-                          <div className="flex justify-between border-b border-slate-950 pb-1">
-                            <span className="text-slate-500">Consumer Name:</span>
-                            <span className="font-bold text-white truncate max-w-[130px]">R. M. KHOBRAGADE</span>
+                          <div className="flex justify-between border-b border-[var(--border-subtle)] pb-1">
+                            <span className="text-[var(--text-muted)]">Consumer Name:</span>
+                            <span className="font-bold text-[var(--text-primary)] truncate max-w-[130px]">R. M. KHOBRAGADE</span>
                           </div>
-                          <div className="flex justify-between border-b border-slate-950 pb-1">
-                            <span className="text-slate-500">Sanctioned Load:</span>
-                            <span className="font-bold text-white">1.00 KW</span>
+                          <div className="flex justify-between border-b border-[var(--border-subtle)] pb-1">
+                            <span className="text-[var(--text-muted)]">Sanctioned Load:</span>
+                            <span className="font-bold text-[var(--text-primary)]">1.00 KW</span>
                           </div>
-                          <div className="flex justify-between border-b border-slate-950 pb-1">
-                            <span className="text-slate-500">Service Meter No:</span>
-                            <span className="font-bold text-white">439222232375</span>
+                          <div className="flex justify-between border-b border-[var(--border-subtle)] pb-1">
+                            <span className="text-[var(--text-muted)]">Service Meter No:</span>
+                            <span className="font-bold text-[var(--text-primary)]">439222232375</span>
                           </div>
 
                           {/* Historical cycle layout */}
-                          <div className="pt-2 text-[8px] text-slate-500 uppercase tracking-wider block">
+                          <div className="pt-2 text-[8px] text-[var(--text-muted)] uppercase tracking-wider block">
                             Historical Readings Array [12M]
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between border-t border-slate-800 pt-2 text-[8px] text-slate-500">
+                        <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2 text-[8px] text-[var(--text-muted)] transition-colors duration-300">
                           <span>MSEDCL SECURE_BU_4612</span>
-                          <span className="text-emerald-400 font-bold">READY TO MAP</span>
+                          <span className="text-[var(--accent-green)] font-bold">READY TO MAP</span>
                         </div>
                       </div>
 
-                      <div className="text-center space-y-1 z-10 mt-4">
-                        <p className="text-xs text-slate-300 font-semibold font-display">Targeted Coordinates Scanning Reticles</p>
-                        <p className="text-[11px] text-slate-500 max-w-[280px]">
+                      <div className="text-center space-y-1 z-10 mt-4 transition-colors duration-300">
+                        <p className="text-xs text-[var(--text-primary)] font-semibold font-display">Targeted Coordinates Scanning Reticles</p>
+                        <p className="text-[11px] text-[var(--text-secondary)] max-w-[280px]">
                           Cognitive vision maps layout coordinates instantly, converting analog terms to relational fields with extreme precision.
                         </p>
                       </div>
@@ -631,12 +631,12 @@ export default function App() {
                 <div className="space-y-6">
                   
                   {/* Active Destination Excel Slot Choice Bar */}
-                  <div className="glass-panel p-5 rounded-2xl border-emerald-500/10 bg-emerald-950/5 flex flex-col md:flex-row shadow-[0_0_20px_rgba(16,185,129,0.05)] md:items-center justify-between gap-6 hover:border-emerald-505/20 transition-all">
+                  <div className="glass-panel p-5 rounded-2xl border-[var(--accent-green)]/10 bg-[var(--accent-green)]/5 flex flex-col md:flex-row shadow-[0_0_20px_rgba(16,185,129,0.05)] md:items-center justify-between gap-6 hover:border-[var(--accent-green)]/20 transition-all duration-300">
                     <div className="text-left">
-                      <h3 className="text-xs font-bold font-display text-emerald-450 uppercase tracking-wider flex items-center gap-1.5 leading-none">
-                        <FileSpreadsheet className="w-4 h-4 text-emerald-400" /> ACTIVE TARGET DESTINATION EXCEL SHEET SLOT
+                      <h3 className="text-xs font-bold font-display text-[var(--accent-green)] uppercase tracking-wider flex items-center gap-1.5 leading-none">
+                        <FileSpreadsheet className="w-4 h-4 text-[var(--accent-green)]" /> ACTIVE TARGET DESTINATION EXCEL SHEET SLOT
                       </h3>
-                      <p className="text-[11px] text-slate-400 mt-1 max-w-xl leading-normal">
+                      <p className="text-[11px] text-[var(--text-secondary)] mt-1 max-w-xl leading-normal">
                         Select which grid column details are target mapped when uploading or scanning bills. Slot 1 writes into Column D (Madhusham), and Slot 2 writes into Column H (Ranjana).
                       </p>
                     </div>
@@ -648,8 +648,8 @@ export default function App() {
                         onClick={() => setSlot("Column D")}
                         className={`px-4 py-2.5 rounded-xl border font-bold font-display text-xs transition-all cursor-pointer ${
                           slot === "Column D" 
-                            ? "bg-slate-900 border-sky-500 text-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.15)]" 
-                            : "bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300"
+                            ? "bg-[var(--bg-surface)] border-[var(--accent-blue)] text-[var(--accent-blue)] shadow-[0_0_12px_rgba(14,165,233,0.15)]" 
+                            : "bg-[var(--hover-bg)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                         }`}
                       >
                         Slot 1 (Column D)
@@ -659,8 +659,8 @@ export default function App() {
                         onClick={() => setSlot("Column H")}
                         className={`px-4 py-2.5 rounded-xl border font-bold font-display text-xs transition-all cursor-pointer ${
                           slot === "Column H" 
-                            ? "bg-slate-900 border-emerald-500 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]" 
-                            : "bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-300"
+                            ? "bg-[var(--bg-surface)] border-[var(--accent-green)] text-[var(--accent-green)] shadow-[0_0_12px_rgba(16,185,129,0.15)]" 
+                            : "bg-[var(--hover-bg)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                         }`}
                       >
                         Slot 2 (Column H)
@@ -699,25 +699,25 @@ export default function App() {
                         
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                           {[
-                            { title: `${slot === "Column D" ? "Slot 1" : "Slot 2"} Units`, val: `${activeUnits} kWh`, detail: `Month: ${latestMonth?.month || "Jan"}`, color: "text-sky-400", icon: Zap },
-                            { title: "Current Bill", val: activeBill > 0 ? `₹${activeBill.toLocaleString()}` : "₹0", detail: "Net Payable", color: "text-amber-400", icon: Coins },
-                            { title: "Sizing Capacity", val: `${finalCap.toFixed(1)} kW`, detail: "Recommended PV Size", color: "text-indigo-400", icon: Sliders },
-                            { title: "Required Panels", val: `${panelsInt} Units`, detail: `@ ${solarPanelUsed}W Panels`, color: "text-emerald-400", icon: ShieldCheck, isConfidence: true },
-                            { title: "Sanctioned Load", val: activeSlotData.sanctionedLoadKw ? `${activeSlotData.sanctionedLoadKw} kW` : "1.0 kW", detail: "Grid agreement", color: "text-violet-400", icon: Clock }
+                            { title: `${slot === "Column D" ? "Slot 1" : "Slot 2"} Units`, val: `${activeUnits} kWh`, detail: `Month: ${latestMonth?.month || "Jan"}`, color: "text-[var(--accent-blue)]", icon: Zap },
+                            { title: "Current Bill", val: activeBill > 0 ? `₹${activeBill.toLocaleString()}` : "₹0", detail: "Net Payable", color: "text-amber-500", icon: Coins },
+                            { title: "Sizing Capacity", val: `${finalCap.toFixed(1)} kW`, detail: "Recommended PV Size", color: "text-indigo-500", icon: Sliders },
+                            { title: "Required Panels", val: `${panelsInt} Units`, detail: `@ ${solarPanelUsed}W Panels`, color: "text-[var(--accent-green)]", icon: ShieldCheck, isConfidence: true },
+                            { title: "Sanctioned Load", val: activeSlotData.sanctionedLoadKw ? `${activeSlotData.sanctionedLoadKw} kW` : "1.0 kW", detail: "Grid agreement", color: "text-violet-500", icon: Clock }
                           ].map((item, idx) => {
                             const Icon = item.icon;
                             return (
-                              <div key={idx} className="glass-panel p-4.5 rounded-2xl relative overflow-hidden text-left group hover:scale-[1.01] transition-transform">
-                                <div className="absolute -right-6 -top-6 w-16 h-16 rounded-full bg-slate-800/25 blur-xl pointer-events-none"></div>
+                              <div key={idx} className="glass-panel p-4.5 rounded-2xl relative overflow-hidden text-left group hover:scale-[1.01] transition-all duration-300">
+                                <div className="absolute -right-6 -top-6 w-16 h-16 rounded-full bg-[var(--accent-blue)]/10 blur-xl pointer-events-none"></div>
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[9px] text-slate-500 font-mono font-bold uppercase tracking-wider">{item.title}</span>
+                                  <span className="text-[9px] text-[var(--text-muted)] font-mono font-bold uppercase tracking-wider">{item.title}</span>
                                   <Icon className={`w-3.5 h-3.5 ${item.color}`} />
                                 </div>
-                                <div className="mt-2 text-base md:text-lg font-bold font-display text-white truncate">{item.val}</div>
+                                <div className="mt-2 text-base md:text-lg font-bold font-display text-[var(--text-primary)] truncate">{item.val}</div>
                                 <div className="mt-1 flex items-center justify-between">
-                                  <span className="text-[9px] text-slate-400 font-mono uppercase">{item.detail}</span>
+                                  <span className="text-[9px] text-[var(--text-secondary)] font-mono uppercase">{item.detail}</span>
                                   {item.isConfidence && (
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                    <span className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-ping"></span>
                                   )}
                                 </div>
                               </div>
@@ -729,34 +729,34 @@ export default function App() {
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                           
                           {/* Sizing description overview */}
-                          <div className="lg:col-span-2 glass-panel rounded-2xl p-6 text-left space-y-4">
-                            <h3 className="text-xs font-bold font-display text-white uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-900 pb-3">
-                              <Sparkles className="w-4 h-4 text-sky-400" /> SIZING METRIC INSIGHTS
+                          <div className="lg:col-span-2 glass-panel rounded-2xl p-6 text-left space-y-4 transition-colors duration-300">
+                            <h3 className="text-xs font-bold font-display text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5 border-b border-[var(--border-subtle)] pb-3">
+                              <Sparkles className="w-4 h-4 text-[var(--accent-blue)]" /> SIZING METRIC INSIGHTS
                             </h3>
-                            <p className="text-xs text-slate-400 leading-relaxed">
+                            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                               This billing ledger allows you to conduct comparative grid analysis to configure either residential solar setup or combined high-output solar plants. Our automated calculator maintains proper <b>Maharashtra MSEDCL</b> standards. Adding units increases the <i>kW demand load</i>, calculating additional panels dynamically.
                             </p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                              <div className="p-3.5 bg-slate-950/40 border border-slate-900 rounded-xl space-y-1">
-                                <span className="text-slate-500 uppercase text-[9px] block">EST. SOLAR GENERATION OFFSET:</span>
-                                <span className="text-sky-300 font-bold font-sans text-sm">+{annualYield.toLocaleString()} kWh / Year</span>
+                              <div className="p-3.5 bg-[var(--hover-bg)] border border-[var(--border-subtle)] rounded-xl space-y-1">
+                                <span className="text-[var(--text-muted)] uppercase text-[9px] block">EST. SOLAR GENERATION OFFSET:</span>
+                                <span className="text-[var(--accent-blue)] font-bold font-sans text-sm">+{annualYield.toLocaleString()} kWh / Year</span>
                               </div>
-                              <div className="p-3.5 bg-slate-950/40 border border-slate-900 rounded-xl space-y-1">
-                                <span className="text-slate-500 uppercase text-[9px] block">FINANCIAL OUTFLOW SAVINGS:</span>
-                                <span className="text-emerald-400 font-bold font-sans text-sm">₹{annualSavings.toLocaleString()} / Year</span>
+                              <div className="p-3.5 bg-[var(--hover-bg)] border border-[var(--border-subtle)] rounded-xl space-y-1">
+                                <span className="text-[var(--text-muted)] uppercase text-[9px] block">FINANCIAL OUTFLOW SAVINGS:</span>
+                                <span className="text-[var(--accent-green)] font-bold font-sans text-sm">₹{annualSavings.toLocaleString()} / Year</span>
                               </div>
                             </div>
                           </div>
 
                           {/* OCR reticle review panel */}
-                          <div className="glass-panel p-4 rounded-2xl text-slate-400 space-y-3 overflow-hidden text-xs text-left">
+                          <div className="glass-panel p-4 rounded-2xl text-[var(--text-secondary)] space-y-3 overflow-hidden text-xs text-left transition-colors duration-300">
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-slate-500 font-mono uppercase tracking-wider flex items-center gap-1">
-                                <Eye className="w-3.5 h-3.5 text-sky-400" /> Cognitive RETICLES PREVIEW
+                              <span className="text-[10px] text-[var(--text-muted)] font-mono uppercase tracking-wider flex items-center gap-1">
+                                <Eye className="w-3.5 h-3.5 text-[var(--accent-blue)]" /> Cognitive RETICLES PREVIEW
                               </span>
                               <button 
                                 onClick={() => setIsZoomed(!isZoomed)}
-                                className="text-sky-400 hover:text-white transition flex items-center gap-1 bg-sky-950/40 border border-sky-400/10 px-2 py-0.5 rounded cursor-pointer"
+                                className="text-[var(--accent-blue)] hover:text-[var(--text-primary)] transition flex items-center gap-1 bg-[var(--accent-blue)]/10 border border-[var(--accent-blue)]/20 px-2 py-0.5 rounded cursor-pointer"
                               >
                                 {isZoomed ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
                                 <span className="text-[8px] font-mono uppercase">ZOOM</span>
@@ -764,10 +764,10 @@ export default function App() {
                             </div>
 
                             {/* Bounding vision overlay */}
-                            <div className={`relative bg-slate-950 rounded-xl overflow-hidden cursor-crosshair border border-slate-900 flex items-center justify-center transition-all duration-300 ${isZoomed ? "h-[360px]" : "h-[190px]"}`}>
+                            <div className={`relative bg-[var(--hover-bg)] rounded-xl overflow-hidden cursor-crosshair border border-[var(--border-subtle)] flex items-center justify-center transition-all duration-300 ${isZoomed ? "h-[360px]" : "h-[190px]"}`}>
                               <div className="absolute inset-0 pointer-events-none">
-                                <div className="absolute border border-dashed border-sky-500 bg-sky-500/5 top-[25%] left-[24%] right-[24%] h-[12%] rounded animate-pulse" />
-                                <div className="absolute border border-dashed border-emerald-500 bg-emerald-500/5 top-[44%] left-[24%] right-[44%] h-[12%] rounded" />
+                                <div className="absolute border border-dashed border-[var(--accent-blue)] bg-[var(--accent-blue)]/5 top-[25%] left-[24%] right-[24%] h-[12%] rounded animate-pulse" />
+                                <div className="absolute border border-dashed border-[var(--accent-green)] bg-[var(--accent-green)]/5 top-[44%] left-[24%] right-[44%] h-[12%] rounded" />
                                 <div className="absolute border border-dashed border-violet-500 bg-violet-500/5 top-[63%] left-[10%] right-[34%] h-[12%] rounded" />
                               </div>
 
@@ -779,20 +779,20 @@ export default function App() {
                                   className="w-full h-full object-contain"
                                 />
                               ) : (
-                                <div className="w-full h-full bg-gradient-to-tr from-slate-900 to-slate-950 p-4 relative overflow-hidden flex flex-col justify-between font-mono text-[8px] text-slate-505 leading-tight">
-                                  <div className="border-b border-slate-800 pb-1.5 flex justify-between text-slate-300">
+                                <div className="w-full h-full bg-[var(--bg-surface)] p-4 relative overflow-hidden flex flex-col justify-between font-mono text-[8px] text-[var(--text-secondary)] leading-tight transition-colors duration-300">
+                                  <div className="border-b border-[var(--border-subtle)] pb-1.5 flex justify-between text-[var(--text-primary)]">
                                     <span>MSEDCL SCANNER PAYLOAD VIEW</span>
-                                    <span className="text-sky-400 animate-pulse">{activeSlotData.consumerNumber}</span>
+                                    <span className="text-[var(--accent-blue)] animate-pulse">{activeSlotData.consumerNumber}</span>
                                   </div>
                                   <div className="space-y-1 px-1">
-                                    <div>Name: <span className="text-white font-bold">{activeSlotData.consumerName}</span></div>
-                                    <div>Class: <span className="text-white">{activeSlotData.connectionType}</span></div>
-                                    <div>Sanc. Load: <span className="text-emerald-400 font-bold">{activeSlotData.sanctionedLoadKw} kW</span></div>
-                                    <div>Fixed Charge: <span className="text-white">₹{activeSlotData.fixedCharges}</span></div>
+                                    <div>Name: <span className="text-[var(--text-primary)] font-bold">{activeSlotData.consumerName}</span></div>
+                                    <div>Class: <span className="text-[var(--text-primary)]">{activeSlotData.connectionType}</span></div>
+                                    <div>Sanc. Load: <span className="text-[var(--accent-green)] font-bold">{activeSlotData.sanctionedLoadKw} kW</span></div>
+                                    <div>Fixed Charge: <span className="text-[var(--text-primary)]">₹{activeSlotData.fixedCharges}</span></div>
                                   </div>
-                                  <div className="border-t border-slate-800 pt-1 flex justify-between text-[7px]">
+                                  <div className="border-t border-[var(--border-subtle)] pt-1 flex justify-between text-[7px]">
                                     <span>PEAK MONS: MARCH - MAY</span>
-                                    <span className="text-emerald-400">ACTIVE: {slot}</span>
+                                    <span className="text-[var(--accent-green)]">ACTIVE: {slot}</span>
                                   </div>
                                 </div>
                               )}
@@ -826,10 +826,10 @@ export default function App() {
         </main>
 
         {/* Flat Bottom Diagnostic Footers bar */}
-        <footer className="absolute bottom-0 left-0 right-0 h-10 border-t border-slate-900 bg-slate-950/80 flex justify-between items-center px-6 text-[10px] font-mono text-slate-600 backdrop-blur">
+        <footer className="absolute bottom-0 left-0 right-0 h-10 border-t border-[var(--border-subtle)] bg-[var(--panel-glass)] flex justify-between items-center px-6 text-[10px] font-mono text-[var(--text-muted)] backdrop-blur transition-colors duration-300">
           <div>ENERGYBAE SYSTEMS INC • SOLAR CALCULATOR INTEL v2.4</div>
-          <div className="flex items-center space-x-1.5 bg-slate-950/90 px-2 py-0.5 rounded border border-slate-900 leading-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+          <div className="flex items-center space-x-1.5 bg-[var(--hover-bg)] px-2 py-0.5 rounded border border-[var(--border-subtle)] leading-none transition-colors duration-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-green)] animate-pulse shrink-0"></span>
             <span>SYSTEM ENCODING STREAM: UTF-8 ENCRYPTED</span>
           </div>
         </footer>
