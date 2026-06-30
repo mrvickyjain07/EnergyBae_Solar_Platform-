@@ -21,44 +21,52 @@
   --color-accent-blue: var(--accent-blue);
   --color-accent-cyan: var(--accent-cyan);
   --color-accent-green: var(--accent-green);
-  
+  --color-accent-green-light: var(--accent-green-light);
+
   --color-hover-bg: var(--hover-bg);
   --color-panel-glass: var(--panel-glass);
 }
 
 @layer base {
   :root {
-    /* Light Mode Variables */
-    --bg-primary: #F8FAFC;
+    /* Light Mode — techy blue & white glass.
+       Note: --accent-green/--accent-green-light are kept as variable NAMES for
+       low-diff compatibility with existing components, but now hold blue values —
+       they are the primary brand accent, not literally green. */
+    --bg-primary: #F4F8FD;
     --bg-surface: #FFFFFF;
     --bg-card: #FFFFFF;
-    --text-primary: #0F172A;
-    --text-secondary: #475569;
-    --text-muted: #64748B;
-    --border-subtle: #E2E8F0;
-    --border-strong: #CBD5E1;
-    --accent-blue: #0EA5E9;
-    --accent-cyan: #06B6D4;
-    --accent-green: #22C55E;
-    --hover-bg: #F1F5F9;
-    --panel-glass: rgba(255, 255, 255, 0.85);
+    --text-primary: #0A1428;
+    --text-secondary: #44546B;
+    --text-muted: #6B7A94;
+    --border-subtle: rgba(37, 99, 235, 0.14);
+    --border-strong: rgba(37, 99, 235, 0.30);
+    --accent-blue: #2563EB;
+    --accent-cyan: #0891B2;
+    --accent-green: #2563EB;
+    --accent-green-light: #38BDF8;
+    --hover-bg: rgba(37, 99, 235, 0.06);
+    --panel-glass: rgba(255, 255, 255, 0.82);
+    --glass-highlight: rgba(255, 255, 255, 0.95);
   }
 
   .dark {
-    /* Dark Mode Variables */
-    --bg-primary: #020817;
-    --bg-surface: #071224;
-    --bg-card: #0A1628;
-    --text-primary: #FFFFFF;
-    --text-secondary: #94A3B8;
-    --text-muted: #64748B;
-    --border-subtle: rgba(0, 180, 255, 0.12);
-    --border-strong: rgba(0, 180, 255, 0.25);
-    --accent-blue: #00BFFF;
-    --accent-cyan: #06B6D4;
-    --accent-green: #22C55E;
-    --hover-bg: rgba(15, 23, 42, 0.6);
-    --panel-glass: rgba(15, 23, 42, 0.65);
+    /* Dark Mode — black & electric-blue tech glass */
+    --bg-primary: #020617;
+    --bg-surface: #050B1A;
+    --bg-card: #070F22;
+    --text-primary: #EAF2FF;
+    --text-secondary: #93A8C8;
+    --text-muted: #56688A;
+    --border-subtle: rgba(56, 189, 248, 0.16);
+    --border-strong: rgba(56, 189, 248, 0.34);
+    --accent-blue: #3B82F6;
+    --accent-cyan: #22D3EE;
+    --accent-green: #3B82F6;
+    --accent-green-light: #60A5FA;
+    --hover-bg: rgba(59, 130, 246, 0.09);
+    --panel-glass: rgba(8, 16, 32, 0.86);
+    --glass-highlight: rgba(96, 165, 250, 0.16);
   }
 }
 
@@ -79,35 +87,50 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-blue);
+  background: var(--accent-green);
   opacity: 0.5;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-blue);
+  background: var(--accent-green);
 }
 
-/* Base global transitions */
+/* Base global transitions — scoped to color properties only. box-shadow is
+   intentionally excluded: animating it on every element is the single most
+   expensive repaint source on this page and was a major scroll-jank cause. */
 * {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
-/* Glassmorphism glass card base style */
+/* Liquid-glass card base style: frosted surface + soft top specular highlight.
+   No backdrop-filter here on purpose — this class is applied to many panels
+   simultaneously on screen (worksheet, metric cards, uploader, hero), and
+   backdrop-filter forces a re-blur of everything behind each panel on every
+   scroll frame. That compounding cost was the main source of scroll jank, so
+   the "glass" look comes from a solid translucent gradient instead. */
 .glass-panel {
-  background: var(--panel-glass);
-  backdrop-filter: blur(14px) saturate(160%);
-  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  background: linear-gradient(165deg, var(--glass-highlight) 0%, var(--panel-glass) 28%, var(--panel-glass) 100%);
   border: 1px solid var(--border-subtle);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 8px 32px rgba(37, 99, 235, 0.06);
+}
+.dark .glass-panel {
+  box-shadow:
+    inset 0 1px 0 rgba(96, 165, 250, 0.1),
+    0 8px 32px rgba(0, 0, 0, 0.5);
 }
 .light .glass-panel {
-  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 4px 24px rgba(37, 99, 235, 0.08);
 }
 
 .glass-panel-neon-cyan {
   background: var(--panel-glass);
-  backdrop-filter: blur(14px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(170%);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(14, 165, 233, 0.1);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(34, 211, 238, 0.12);
 }
 .light .glass-panel-neon-cyan {
   border: 1px solid var(--accent-cyan);
@@ -115,32 +138,53 @@ body {
 }
 
 .glass-panel-neon-green {
-  background: var(--panel-glass);
-  backdrop-filter: blur(14px) saturate(160%);
+  background: linear-gradient(165deg, var(--glass-highlight) 0%, var(--panel-glass) 30%, var(--panel-glass) 100%);
+  backdrop-filter: blur(18px) saturate(170%);
   border: 1px solid var(--border-strong);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(34, 197, 94, 0.15);
+  box-shadow: 0 4px 30px rgba(37, 99, 235, 0.18), inset 0 1px 1px rgba(96, 165, 250, 0.2);
 }
 .light .glass-panel-neon-green {
   border: 1px solid var(--accent-green);
-  box-shadow: 0 4px 20px rgba(34, 197, 94, 0.15);
+  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.18);
 }
 
-@keyframes pulse-slow {
+/* Liquid blob motion: drift + breathe, used for ambient backgrounds.
+   Only transform/opacity animate — both are GPU-compositable and don't trigger
+   layout or paint, unlike the border-radius animation this used to include
+   (which forced a repaint every frame and was a major source of scroll jank
+   when combined with a 100px blur filter). The organic shape is now static. */
+@keyframes liquid-drift {
   0%, 100% {
     transform: scale(1) translate(0px, 0px);
-    opacity: 0.15;
+    opacity: 0.18;
   }
   33% {
-    transform: scale(1.1) translate(30px, -20px);
-    opacity: 0.22;
+    transform: scale(1.15) translate(30px, -25px);
+    opacity: 0.26;
   }
   66% {
-    transform: scale(0.95) translate(-20px, 15px);
-    opacity: 0.18;
+    transform: scale(0.92) translate(-25px, 18px);
+    opacity: 0.2;
   }
 }
 
 .orb-glow {
-  filter: blur(100px);
-  animation: pulse-slow 15s infinite ease-in-out;
+  border-radius: 42% 58% 65% 35% / 45% 40% 60% 55%;
+  filter: blur(80px);
+  animation: liquid-drift 16s infinite ease-in-out;
+  will-change: transform, opacity;
+}
+
+/* Soft, flowing green/white mesh used behind hero & key panels */
+.liquid-mesh-bg {
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(96, 165, 250, 0.22), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.16), transparent 50%),
+    radial-gradient(circle at 50% 90%, rgba(34, 211, 238, 0.14), transparent 55%);
+}
+.dark .liquid-mesh-bg {
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.18), transparent 45%),
+    radial-gradient(circle at 85% 15%, rgba(37, 99, 235, 0.14), transparent 50%),
+    radial-gradient(circle at 50% 90%, rgba(34, 211, 238, 0.1), transparent 55%);
 }

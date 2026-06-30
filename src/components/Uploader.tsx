@@ -4,14 +4,12 @@ import { UploadCloud, FileText, FileImage, Sparkles, Check, FileCheck, HardDrive
 
 interface UploaderProps {
   onFileLoaded: (base64Data: string, fileName: string) => void;
-  onRunSample: () => void;
   isLoading: boolean;
   selectedFileName: string | null;
 }
 
 export default function Uploader({
   onFileLoaded,
-  onRunSample,
   isLoading,
   selectedFileName
 }: UploaderProps) {
@@ -72,10 +70,10 @@ export default function Uploader({
         onDragLeave={handleDrag}
         onDrop={handleDrop}
         onClick={onButtonClick}
-        className={`glass-panel rounded-3xl p-10 border-dashed border-2 cursor-pointer transition-all duration-300 relative text-center flex flex-col items-center justify-center min-h-[260px] select-none group focus:outline-none ${
+        className={`glass-panel rounded-3xl p-6 sm:p-8 md:p-10 border-dashed border-2 cursor-pointer transition-all duration-300 relative text-center flex flex-col items-center justify-center min-h-[200px] sm:min-h-[260px] select-none group focus:outline-none ${
           isDragActive 
-            ? "border-[var(--accent-blue)] bg-[var(--accent-blue)]/10 shadow-[0_0_25px_rgba(14,165,233,0.3)]" 
-            : "border-[var(--border-subtle)] hover:border-[var(--accent-blue)]/40 hover:bg-[var(--hover-bg)] shadow-lg shadow-black/5"
+            ? "border-[var(--accent-green)] bg-[var(--accent-green)]/10 shadow-[0_0_25px_rgba(16,185,129,0.3)]" 
+            : "border-[var(--border-subtle)] hover:border-[var(--accent-green)]/40 hover:bg-[var(--hover-bg)] shadow-lg shadow-black/5"
         }`}
       >
         <input 
@@ -88,12 +86,12 @@ export default function Uploader({
         />
 
         {/* Ambient background sparkle overlay */}
-        <div className="absolute top-4 right-4 text-sky-500/10 group-hover:text-sky-400/30 group-hover:scale-110 transition-all duration-500 pointer-events-none">
+        <div className="absolute top-4 right-4 text-blue-500/10 group-hover:text-blue-400/30 group-hover:scale-110 transition-all duration-500 pointer-events-none">
           <Sparkles className="w-5 h-5 animate-pulse" />
         </div>
         
         {/* Animated glowing back ring */}
-        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 to-emerald-500/0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 to-[var(--accent-green)]/0 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
 
         {/* Dynamic Display based on file loaded status */}
         <AnimatePresence mode="wait">
@@ -105,7 +103,7 @@ export default function Uploader({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-4 relative z-10"
             >
-              <div className="p-4 bg-[var(--accent-blue)]/10 rounded-2xl border border-[var(--accent-blue)]/30 text-[var(--accent-blue)] inline-flex items-center justify-center shadow-lg shadow-[var(--accent-blue)]/5">
+              <div className="p-4 bg-[var(--accent-green)]/10 rounded-2xl border border-[var(--accent-green)]/30 text-[var(--accent-green)] inline-flex items-center justify-center shadow-lg shadow-[var(--accent-green)]/5">
                 {selectedFileName.toLowerCase().endsWith(".pdf") ? (
                   <FileText className="w-12 h-12" />
                 ) : (
@@ -117,7 +115,7 @@ export default function Uploader({
                   <Check className="w-4 h-4 text-[var(--accent-green)]" /> {selectedFileName}
                 </p>
                 <div className="flex items-center justify-center gap-2 mt-0.5">
-                  <span className="text-[10px] font-mono bg-[var(--accent-blue)]/15 text-[var(--accent-blue)] px-2 py-0.5 rounded border border-[var(--accent-blue)]/20">READY FOR EXTRACTION</span>
+                  <span className="text-[10px] font-mono bg-[var(--accent-green)]/15 text-[var(--accent-green)] px-2 py-0.5 rounded border border-[var(--accent-green)]/20">READY FOR EXTRACTION</span>
                   <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">{selectedFileName.split('.').pop()} FILE</span>
                 </div>
               </div>
@@ -130,13 +128,13 @@ export default function Uploader({
               exit={{ opacity: 0, y: -10 }}
               className="space-y-5 relative z-10"
             >
-              <div className="p-4.5 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] text-[var(--text-muted)] group-hover:text-[var(--accent-blue)] group-hover:border-[var(--accent-blue)]/30 group-hover:shadow-[0_0_20px_rgba(14,165,233,0.15)] inline-flex items-center justify-center transition-all duration-300">
+              <div className="p-4.5 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] text-[var(--text-muted)] group-hover:text-[var(--accent-green)] group-hover:border-[var(--accent-green)]/30 group-hover:shadow-[0_0_20px_rgba(37,99,235,0.15)] inline-flex items-center justify-center transition-all duration-300">
                 <UploadCloud className="w-10 h-10 group-hover:scale-105 transition-transform" />
               </div>
               
               <div className="space-y-2 max-w-[320px] mx-auto">
                 <h3 className="text-base font-semibold font-display text-[var(--text-primary)] tracking-tight leading-tight">
-                  Drag & drop your utility bill here, or <span className="text-[var(--accent-blue)] font-bold group-hover:underline">browse files</span>
+                  Drag & drop your utility bill here, or <span className="text-[var(--accent-green)] font-bold group-hover:underline">browse files</span>
                 </h3>
                 <p className="text-[11px] text-[var(--text-muted)] font-mono tracking-wider leading-relaxed">
                   SUPPORTED FOR MSEDCL: PDF, JPEG, PNG • UP TO 50MB
@@ -153,39 +151,6 @@ export default function Uploader({
           )}
         </AnimatePresence>
       </motion.div>
-
-      {/* 2. Interactive Feature Demo Trigger */}
-      <div className="glass-panel rounded-2xl p-5 border-[var(--border-subtle)] flex flex-col sm:flex-row items-center justify-between gap-4 bg-[var(--bg-surface)] relative overflow-hidden transition-colors duration-300">
-        {/* Glow corner inside activator */}
-        <div className="absolute right-0 bottom-0 w-24 h-24 rounded-full bg-emerald-500/10 blur-xl pointer-events-none"></div>
-
-        <div className="flex items-start text-left gap-3 relative z-10">
-          <div className="p-2.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 text-emerald-500 shrink-0 mt-0.5">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <div>
-            <h4 className="text-xs font-bold font-display text-emerald-500 tracking-wide">Interactive Platform Demo</h4>
-            <p className="text-[11px] text-[var(--text-secondary)] leading-normal max-w-[350px] mt-0.5">
-              Don't have an electricity bill file ready? Start immediately with a <b className="text-[var(--text-primary)]">sample bill</b> to witness the speed of the cognitive extraction and solar recommendation engine.
-            </p>
-          </div>
-        </div>
-
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.98 }}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRunSample();
-          }}
-          disabled={isLoading}
-          className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-xs font-bold font-display text-white shadow-lg shadow-emerald-950/40 hover:from-emerald-500 hover:to-teal-400 disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 select-none cursor-pointer"
-        >
-          <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-          Run Demo Bill
-        </motion.button>
-      </div>
     </div>
   );
 }
