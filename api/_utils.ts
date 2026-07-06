@@ -2,7 +2,7 @@
 // Extracted from server.ts — all pure functions, no Express dependency.
 
 import { GoogleGenAI } from "@google/genai";
-import { calculateUnitCost, DEFAULT_MSEDCL_LT1_SLABS, TariffSlab } from "../src/services/tariffCalculator";
+import { calculateUnitCost, DEFAULT_MSEDCL_LT1_SLABS, TariffSlab } from "../src/services/tariffCalculator.js";
 
 // ─── Gemini client (lazy singleton) ─────────────────────────────────────────
 let geminiClient: GoogleGenAI | null = null;

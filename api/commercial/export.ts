@@ -1,8 +1,8 @@
 // POST /api/commercial/export — Commercial bill Excel workbook generation
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as xlsx from "xlsx";
-import { buildCommercialWorksheetModel } from "../../src/modules/commercial/commercialWorksheetModel";
-import type { CommercialBillData } from "../../src/modules/commercial/types";
+import { buildCommercialWorksheetModel } from "../../src/modules/commercial/commercialWorksheetModel.js";
+import type { CommercialBillData } from "../../src/modules/commercial/types.js";
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

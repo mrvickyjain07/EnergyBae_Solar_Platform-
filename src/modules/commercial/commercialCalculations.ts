@@ -4,7 +4,7 @@
 // exactly. Used by both CommercialBillAnalysis.tsx (live display) and
 // commercialWorksheetModel.ts (Excel export) as the single source of truth —
 // same pattern as src/worksheetModel.ts is for Residential.
-import { CommercialBillingHistoryRow, CommercialTodSlotReading, TodSlotId } from "./types";
+import { CommercialBillingHistoryRow, CommercialTodSlotReading, TodSlotId } from "./types.js";
 
 export type TodMode = "LT" | "HT";
 

@@ -1,7 +1,7 @@
 // POST /api/download-excel — Residential bill Excel workbook generation
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import * as xlsx from "xlsx";
-import { buildWorksheetModel } from "../src/worksheetModel";
+import { buildWorksheetModel } from "../src/worksheetModel.js";
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

@@ -3,8 +3,8 @@
 // completely independent — separate sections, separate sheet, never shares a
 // template with Residential. Used by both server.ts (xlsx generation) and the
 // Google Sheets export flow (commercialGoogleSheetsExport.ts).
-import { WorksheetCell, WorksheetModel } from "../../worksheetModel";
-import { CommercialBillData } from "./types";
+import { WorksheetCell, WorksheetModel } from "../../worksheetModel.js";
+import { CommercialBillData } from "./types.js";
 import {
   computeBillingStats,
   detectTodMode,
@@ -13,7 +13,7 @@ import {
   reconcileCharges,
   computeSizingPipeline,
   computeValidationChecks,
-} from "./commercialCalculations";
+} from "./commercialCalculations.js";
 
 export interface CommercialSizingInputs {
   panelWatt: number;

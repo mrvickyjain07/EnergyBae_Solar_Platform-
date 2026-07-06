@@ -7,9 +7,9 @@ import {
   isTransientError,
   withRetry,
   detectPdfPageCount,
-} from "../_utils";
-import { buildBillingHistoryWindow } from "../../src/modules/commercial/commercialCalculations";
-import type { CommercialBillData } from "../../src/modules/commercial/types";
+} from "../_utils.js";
+import { buildBillingHistoryWindow } from "../../src/modules/commercial/commercialCalculations.js";
+import type { CommercialBillData } from "../../src/modules/commercial/types.js";
 
 const COMMERCIAL_PROMPT = `
 You are a highly precise document parsing engine for EnergyBae, a solar platform.

@@ -8,9 +8,9 @@ import {
   withRetry,
   detectPdfPageCount,
   sanitizeExtractedData,
-} from "./_utils";
-import { WORKSHEET_DIVISOR } from "../src/worksheetModel";
-import { DEFAULT_MSEDCL_LT1_SLABS } from "../src/services/tariffCalculator";
+} from "./_utils.js";
+import { WORKSHEET_DIVISOR } from "../src/worksheetModel.js";
+import { DEFAULT_MSEDCL_LT1_SLABS } from "../src/services/tariffCalculator.js";
 
 // ─── Prompt ──────────────────────────────────────────────────────────────────
 const MSEDCL_PROMPT = `
