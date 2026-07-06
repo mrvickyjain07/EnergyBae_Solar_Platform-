@@ -6,6 +6,7 @@ import * as xlsx from "xlsx";
 import dotenv from "dotenv";
 import { buildWorksheetModel, WORKSHEET_DIVISOR } from "./src/worksheetModel";
 import { calculateUnitCost, DEFAULT_MSEDCL_LT1_SLABS, TariffSlab } from "./src/services/tariffCalculator";
+import { registerCommercialRoutes } from "./src/modules/commercial/commercialApi";
 
 // Load .env.local (development) and fall back to .env
 dotenv.config({ path: ".env.local" });
@@ -32,7 +33,7 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // that isn't shaped like a real Gemini Developer API key (e.g. a leftover
 // AI-Studio-sandbox token, which looks nothing like the real "AIzaSy..."
 // format issued at https://aistudio.google.com/apikey).
-function validateGeminiApiKeyFormat(apiKey: string | undefined): { valid: boolean; reason?: string } {
+export function validateGeminiApiKeyFormat(apiKey: string | undefined): { valid: boolean; reason?: string } {
   if (!apiKey || !apiKey.trim()) {
     return { valid: false, reason: "GEMINI_API_KEY is missing or empty." };
   }
@@ -50,7 +51,7 @@ function validateGeminiApiKeyFormat(apiKey: string | undefined): { valid: boolea
 
 // Lazy initializer for Gemini Client
 let geminiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
+export function getGeminiClient(): GoogleGenAI {
   if (!geminiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -71,7 +72,7 @@ function getGeminiClient(): GoogleGenAI {
 // ─── Retry utility ──────────────────────────────────────────────────────────
 // Returns true if the error is a transient model-side issue (503, rate limit,
 // quota exceeded, or network reset) that is worth retrying.
-function isTransientError(err: any): boolean {
+export function isTransientError(err: any): boolean {
   // Node's `fetch` wraps the real network failure in `.cause` (e.g. ECONNRESET,
   // ETIMEDOUT, ENOTFOUND, EAI_AGAIN) and only exposes "fetch failed" on the
   // top-level error message — so the cause chain must be inspected too, or
@@ -108,7 +109,7 @@ function isTransientError(err: any): boolean {
 // Exponential-backoff retry wrapper.
 // maxAttempts: total attempts (first call + retries).
 // baseDelayMs: initial wait before first retry (doubles each retry).
-async function withRetry<T>(
+export async function withRetry<T>(
   label: string,
   fn: () => Promise<T>,
   maxAttempts = 4,
@@ -148,7 +149,7 @@ async function withRetry<T>(
 // Scans the raw PDF bytes for "/Type /Page" dictionary entries, which appear
 // once per page object in both digitally-generated and scanned PDFs.
 // Falls back to 1 if the pattern is not found (e.g. for images).
-function detectPdfPageCount(buffer: Buffer): number {
+export function detectPdfPageCount(buffer: Buffer): number {
   try {
     const text = buffer.toString("latin1"); // latin1 is safe for binary scan
     // Count occurrences of "/Type /Page" or "/Type/Page" (PDF spec allows both)
@@ -525,6 +526,17 @@ const SAMPLE_MSEDCL_DATA = {
   paybackPeriodYears: 4.6,
   carbonReductionTons: 1.66
 };
+
+// Commercial Bill Analysis — fully isolated module (own prompt, schema,
+// sanitizer, Excel template, and processing log). Generic infra is injected
+// so this never needs to import back from server.ts.
+registerCommercialRoutes(app, {
+  getGeminiClient,
+  withRetry,
+  isTransientError,
+  detectPdfPageCount,
+  validateGeminiApiKeyFormat,
+});
 
 // API Endpoint - Check system status
 app.get("/api/status", (req, res) => {

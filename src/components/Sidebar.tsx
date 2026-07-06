@@ -6,13 +6,14 @@ import {
   LayoutDashboard,
   FileScan,
   TrendingUp,
+  Building2,
   ChevronLeft,
   ChevronRight,
   Sun,
   X,
 } from "lucide-react";
 
-import energyBaeLogo from "../../EnergyBae Logo 28mm.jpg";
+const energyBaeLogo = "/logo-28mm.jpg";
 
 function EnergyBaeCircularLogo({ size = 128 }: { size?: number }) {
   return (
@@ -64,8 +65,8 @@ interface SidebarProps {
   setConfidenceThreshold: (val: number) => void;
   selectedModel: string;
   setSelectedModel: (model: string) => void;
-  activeTab: "overview" | "ocr" | "sizing";
-  setActiveTab: (tab: "overview" | "ocr" | "sizing") => void;
+  activeTab: "overview" | "ocr" | "sizing" | "commercial";
+  setActiveTab: (tab: "overview" | "ocr" | "sizing" | "commercial") => void;
   isCollapsed: boolean;
   setIsCollapsed: (val: boolean) => void;
   fileLoaded: boolean;
@@ -112,6 +113,13 @@ export default function Sidebar({
       icon: TrendingUp,
       badge: hasExtractedData ? "Calculated" : null,
       badgeColor: "bg-amber-500/10 text-amber-500",
+    },
+    {
+      id: "commercial",
+      name: "Commercial Bill Analysis",
+      icon: Building2,
+      badge: null,
+      badgeColor: "bg-[var(--accent-green)]/20 text-[var(--accent-green)]",
     },
   ] as const;
 

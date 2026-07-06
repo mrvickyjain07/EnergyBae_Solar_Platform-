@@ -1,71 +1,144 @@
-# EnergyBae Solar Platform ☀️
+# EnergyBae Solar Platform
 
-EnergyBae Next-Generation Energy Intelligence is a full-stack platform designed to help users calculate their solar potential. It uses cutting-edge AI (Google Gemini Vision) to automatically scan, extract, and analyze MSEDCL (Maharashtra State Electricity Distribution Co. Ltd.) electricity bills, generating precise solar PV system sizing recommendations and calculating potential financial savings.
+> AI-powered solar sizing tool for MSEDCL electricity bills — built with React 19, Vite, Tailwind CSS v4, and Gemini 2.5 Flash.
 
-## 🚀 Features
-
-- **AI OCR Scanner**: Upload your electricity bill (image) and automatically extract consumer details, billing unit, sanctioned load, and historical consumption.
-- **Solar Sizing Recommendation**: Calculates the optimal Solar PV System Size (kW) based on historical electricity usage.
-- **Financial Projections**: Estimates annual energy generation, monetary savings (INR), payback period, and carbon footprint reduction.
-- **Excel Export**: Generates a downloadable, highly-detailed Excel workbook comparing load data and solar capacity.
-- **Responsive UI**: A beautiful, modern interface built with React, Vite, and Tailwind CSS.
-
-## 🛠️ Tech Stack
-
-- **Frontend**: React 19, Vite, Tailwind CSS v4, Motion (Animations), Lucide React (Icons).
-- **Backend**: Node.js, Express, TypeScript, `tsx`, `esbuild`.
-- **AI Engine**: `@google/genai` (Gemini 3.5 Flash Multimodal Vision).
-- **Utilities**: `xlsx` for Excel sheet generation.
-
-## 💻 Running Locally
-
-### Prerequisites
-- Node.js (v20+ recommended)
-- A Gemini API Key from Google AI Studio.
-
-### Installation
-
-1. **Clone the repository** (if you haven't already):
-   ```bash
-   git clone https://github.com/mrvickyjain07/EnergyBae_Solar_Platform-.git
-   cd EnergyBae_Solar_Platform-
-   ```
-
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-3. **Set up Environment Variables**:
-   Create a `.env.local` file in the root directory and add your API key:
-   ```env
-   GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE"
-   ```
-
-4. **Start the Development Server**:
-   ```bash
-   npm run dev
-   ```
-   The application will start concurrently (Vite dev server + Express backend) and will be available at `http://localhost:3000`.
-
-## 🌍 Deployment
-
-This app is ready to be hosted on platforms like **Render**, **Railway**, or **Google Cloud Run**. It includes a `Dockerfile` for seamless deployment.
-
-### Deploying on Render (Recommended)
-1. Push this code to GitHub.
-2. Sign up on [Render.com](https://render.com/) and create a **New Web Service**.
-3. Connect your GitHub repository.
-4. Render will automatically detect it as a Node application. Set the following:
-   - **Build Command:** `npm install && npm run build`
-   - **Start Command:** `npm start`
-5. Go to the **Environment** tab on Render and add two variables:
-   - `GEMINI_API_KEY` = your api key
-   - `NODE_ENV` = `production`
-6. Click **Deploy**.
-
-## 🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/energybae-solar-platform)
 
 ---
-*Built with ❤️ by the EnergyBae Team.*
+
+## Features
+
+- 📄 **AI Bill OCR** — Upload any MSEDCL electricity bill (image or multi-page PDF up to 20 MB); Gemini 2.5 Flash extracts all fields including Marathi/Devanagari text
+- ☀️ **Solar Sizing** — Automatic PV system sizing, annual generation estimate, savings, payback period, and carbon offset
+- 📊 **12-Month History** — Reconstructs billing history from the bill's tables and charts
+- 📥 **Excel Export** — Download a formatted solar sizing workbook
+- 📋 **Google Sheets Export** — Save results directly to Google Drive via Picker UI
+- 🏭 **Commercial Module** — Separate analysis flow for commercial/industrial/HT/TOD bills
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19, Vite 6, Tailwind CSS v4, lucide-react, motion |
+| Backend (Serverless) | Vercel Functions (TypeScript), `@vercel/node` |
+| AI | Google Gemini 2.5 Flash (`@google/genai`) |
+| Export | `xlsx` (in-memory workbook generation) |
+| Google APIs | Sheets API, Drive API, Picker API (OAuth via Google Identity Services) |
+
+---
+
+## Deploy to Vercel
+
+### 1. Push to GitHub
+
+```bash
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/YOUR_USERNAME/energybae-solar-platform.git
+git push -u origin main
+```
+
+### 2. Import in Vercel
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import your GitHub repository
+3. Vercel auto-detects **Vite** — settings will be pre-filled:
+   - **Framework Preset**: Vite
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+
+### 3. Set Environment Variables
+
+In the Vercel dashboard → **Settings → Environment Variables**, add:
+
+| Variable | Description | Secret? |
+|----------|-------------|---------|
+| `GEMINI_API_KEY` | Google Gemini API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | ✅ Yes |
+| `VITE_GOOGLE_CLIENT_ID` | OAuth 2.0 Web Client ID from Google Cloud Console | ⚠️ Build-time |
+| `VITE_GOOGLE_API_KEY` | API key restricted to Google Picker API | ⚠️ Build-time |
+
+> **Note**: `VITE_*` variables are embedded into the frontend bundle at build time. They are not secrets but should be restricted (API key restrictions in GCP Console).
+
+### 4. Deploy
+
+Click **Deploy**. Vercel will build the Vite frontend and deploy the `/api/*` functions as serverless functions automatically.
+
+---
+
+## Local Development
+
+```bash
+# Install dependencies
+npm install
+
+# Install Vercel CLI (for local serverless function testing)
+npm i -g vercel
+
+# Link to your Vercel project (first time only)
+vercel link
+
+# Run locally — Vercel dev serves both frontend and API functions
+vercel dev
+```
+
+Create a `.env.local` file with your keys (this file is gitignored):
+
+```env
+GEMINI_API_KEY=your_gemini_api_key
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+VITE_GOOGLE_API_KEY=your_google_picker_api_key
+```
+
+---
+
+## API Endpoints
+
+All endpoints are Vercel Serverless Functions under `/api/`:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/status` | Health check — confirms Gemini key is configured |
+| `POST` | `/api/extract` | Residential bill OCR (base64 file in body) |
+| `POST` | `/api/download-excel` | Generate residential Excel workbook |
+| `POST` | `/api/commercial/extract` | Commercial/Industrial bill OCR |
+| `POST` | `/api/commercial/export` | Generate commercial Excel workbook |
+
+---
+
+## Project Structure
+
+```
+energybae-solar-platform/
+├── api/                        # Vercel Serverless Functions
+│   ├── _utils.ts               # Shared utilities (Gemini client, retry, sanitizer)
+│   ├── status.ts               # GET /api/status
+│   ├── extract.ts              # POST /api/extract
+│   ├── download-excel.ts       # POST /api/download-excel
+│   └── commercial/
+│       ├── extract.ts          # POST /api/commercial/extract
+│       └── export.ts           # POST /api/commercial/export
+├── src/
+│   ├── components/             # React UI components
+│   ├── contexts/               # React context (theme)
+│   ├── modules/commercial/     # Commercial bill analysis module
+│   ├── services/               # Google Auth, Sheets, Drive, tariff calculator
+│   ├── App.tsx                 # Main app component
+│   ├── main.tsx                # React entry point
+│   ├── types.ts                # Shared TypeScript types
+│   └── worksheetModel.ts       # Residential Excel layout model
+├── public/                     # Static assets (favicon, logos)
+├── index.html                  # HTML entry point
+├── vite.config.ts              # Vite configuration
+├── vercel.json                 # Vercel routing configuration
+├── tsconfig.json               # TypeScript configuration
+└── .env.example                # Environment variable template
+```
+
+---
+
+## Environment Variables Reference
+
+See [`.env.example`](.env.example) for a full template with descriptions.

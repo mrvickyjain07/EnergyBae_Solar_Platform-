@@ -4,5 +4,28 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+logs/
+
+# Environment secrets — never commit these
+.env
+.env.local
+.env.production
+.env.development
 !.env.example
+
+# Credentials / keys
+*.pem
+*.key
+*.p12
+service-account*.json
+gcp-credentials*.json
+credentials.json
+client_secret*.json
+
+# Editor / OS artifacts
+.vscode/
+.idea/
+Thumbs.db
+
+# Internal eval/scratch data
+.agent/

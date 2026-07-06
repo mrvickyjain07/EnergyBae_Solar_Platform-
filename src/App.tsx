@@ -7,6 +7,7 @@ import ComparativeSheet, { SlotData } from "./components/ComparativeSheet";
 import GoogleSheetsExportModal from "./components/GoogleSheetsExportModal";
 import AnimatedNumber from "./components/AnimatedNumber";
 import GlassmorphismTrustHero from "@/components/ui/glassmorphism-trust-hero";
+import CommercialBillAnalysis from "./modules/commercial/CommercialBillAnalysis";
 import { buildBlankSlotData } from "./defaultData";
 import { ExtractedBillData } from "./types";
 import { WORKSHEET_DIVISOR } from "./worksheetModel";
@@ -38,8 +39,11 @@ import {
 } from "lucide-react";
 
 export default function App() {
-  // Navigation tab states ('overview' | 'ocr' | 'sizing')
-  const [activeTab, setActiveTab] = useState<'overview' | 'ocr' | 'sizing'>('overview');
+  // Navigation tab states ('overview' | 'ocr' | 'sizing' | 'commercial')
+  // 'commercial' is a fully independent module (own state lives inside
+  // CommercialBillAnalysis itself) — it never touches any Residential state
+  // declared in this component.
+  const [activeTab, setActiveTab] = useState<'overview' | 'ocr' | 'sizing' | 'commercial'>('overview');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(true);
 
   // Config states
@@ -581,6 +585,18 @@ export default function App() {
               </motion.div>
             )}
 
+            {/* TAB: COMMERCIAL BILL ANALYSIS (fully independent module — own OCR, own state, own Excel/Sheets export) */}
+            {activeTab === 'commercial' && (
+              <motion.div
+                key="commercial-tab"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                className="space-y-6"
+              >
+                <CommercialBillAnalysis />
+              </motion.div>
+            )}
 
 
           </AnimatePresence>

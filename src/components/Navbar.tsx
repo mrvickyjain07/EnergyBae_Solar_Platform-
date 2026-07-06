@@ -1,12 +1,12 @@
 import React from "react";
-import energyBaeNavbarLogo from "../../EnergyBae Logo - 2 png.png";
+const energyBaeNavbarLogo = "/logo-2.png";
 import { motion, AnimatePresence } from "motion/react";
 import { Sun, Moon, Menu } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
 interface NavbarProps {
-  activeTab: 'overview' | 'ocr' | 'sizing';
-  setActiveTab: (tab: 'overview' | 'ocr' | 'sizing') => void;
+  activeTab: 'overview' | 'ocr' | 'sizing' | 'commercial';
+  setActiveTab: (tab: 'overview' | 'ocr' | 'sizing' | 'commercial') => void;
   onOpenMobileMenu: () => void;
 }
 
@@ -39,7 +39,7 @@ export default function Navbar({
 
         {/* Center: Interactive Tabs bar list */}
         <nav className="hidden md:flex items-center space-x-1.5 bg-[var(--hover-bg)] p-1 rounded-xl border border-[var(--border-subtle)] transition-colors duration-300">
-          {(['overview', 'ocr', 'sizing'] as const).map((tab) => (
+          {(['overview', 'ocr', 'sizing', 'commercial'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -56,7 +56,7 @@ export default function Navbar({
                   className="absolute inset-0 bg-gradient-to-br from-[var(--accent-green-light)]/15 to-[var(--bg-surface)] border border-[var(--accent-green)]/30 rounded-lg shadow-sm"
                 />
               )}
-              <span className="capitalize relative z-10">{tab === 'ocr' ? 'AI OCR Scanner' : tab === 'sizing' ? 'Solar Analytics' : tab}</span>
+              <span className="capitalize relative z-10">{tab === 'ocr' ? 'AI OCR Scanner' : tab === 'sizing' ? 'Solar Analytics' : tab === 'commercial' ? 'Commercial Bill Analysis' : tab}</span>
             </button>
           ))}
         </nav>
