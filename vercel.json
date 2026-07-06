@@ -3,14 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "nodeVersion": "22.x",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ],
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 60,
-      "runtime": "nodejs22.x"
+      "maxDuration": 60
     }
   }
 }
