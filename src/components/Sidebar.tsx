@@ -109,7 +109,7 @@ export default function Sidebar({
     },
     {
       id: "sizing",
-      name: "Solar Analytics",
+      name: "Home & Society",
       icon: TrendingUp,
       badge: hasExtractedData ? "Calculated" : null,
       badgeColor: "bg-amber-500/10 text-amber-500",

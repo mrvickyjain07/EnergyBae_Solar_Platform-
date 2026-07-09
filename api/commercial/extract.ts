@@ -2,10 +2,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Type } from "@google/genai";
 import {
-  getGeminiClient,
-  validateGeminiApiKeyFormat,
-  isTransientError,
-  withRetry,
+  validateConfiguredGeminiApiKeys,
+  classifyGeminiError,
+  withGeminiKeyFallback,
   detectPdfPageCount,
 } from "../_utils.js";
 import { buildBillingHistoryWindow } from "../../src/modules/commercial/commercialCalculations.js";
@@ -168,12 +167,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { fileData, fileName } = req.body;
   const startedAt = Date.now();
 
+  console.log(`[EnergyBae][Commercial] New extraction request — file: "${fileName || "unnamed"}"`);
+
   if (!fileData) {
     return res.status(400).json({ success: false, error: "No file data provided." });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  const keyCheck = validateGeminiApiKeyFormat(apiKey);
+  const keyCheck = validateConfiguredGeminiApiKeys();
   if (!keyCheck.valid) {
     return res.status(400).json({
       success: false,
@@ -197,13 +197,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const isPdf = detectedMime === "application/pdf";
     const pageCount = isPdf ? detectPdfPageCount(fileBuffer) : 1;
-    const ai = getGeminiClient();
 
     console.log(`[EnergyBae][Commercial] Sending to Gemini (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)`);
 
-    const response = await withRetry(
+    const response = await withGeminiKeyFallback(
       `Gemini-Commercial-OCR-${pageCount}pg`,
-      () => ai.models.generateContent({
+      (ai) => ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: { parts: [{ inlineData: { mimeType: detectedMime, data: fileBuffer.toString("base64") } }, { text: COMMERCIAL_PROMPT }] },
         config: { responseMimeType: "application/json", responseSchema: COMMERCIAL_RESPONSE_SCHEMA, temperature: 0, thinkingConfig: { thinkingBudget: 512 } },
@@ -211,25 +210,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       2, 2000
     );
 
-    let parsedJson: any = {};
     const rawText = response.text || "";
+    console.log(
+      `[EnergyBae][Commercial] Gemini response received — ${rawText.length} chars` +
+        (response.usageMetadata
+          ? ` | tokens: prompt=${response.usageMetadata.promptTokenCount ?? "?"} output=${response.usageMetadata.candidatesTokenCount ?? "?"} total=${response.usageMetadata.totalTokenCount ?? "?"}`
+          : "")
+    );
+    let parsedJson: any = {};
     try {
       const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
       parsedJson = JSON.parse(cleaned || "{}");
     } catch {
+      console.error("[EnergyBae][Commercial] JSON parse failed. Raw model text (first 500 chars):", rawText.slice(0, 500));
       throw new Error("The AI model returned a response that could not be parsed as JSON. Try a clearer scan.");
     }
 
     const sanitized = sanitizeCommercialData(parsedJson);
-    console.log(`[EnergyBae][Commercial] ✓ Done in ${Date.now() - startedAt}ms`);
+    console.log(`[EnergyBae][Commercial] ✓ Done in ${Date.now() - startedAt}ms — consumer: ${sanitized.consumerName || "(not found)"}`);
     return res.status(200).json({ success: true, data: sanitized });
 
   } catch (error: any) {
     const rawMessage: string = error?.message || String(error);
     console.error("[EnergyBae][Commercial] ✗ Failed:", rawMessage);
-    const userMessage = isTransientError(error)
-      ? "The AI model is experiencing high demand. Please wait 1–2 minutes and try again."
-      : "Unable to extract bill. Please upload a higher quality document.";
+
+    const classification = classifyGeminiError(error);
+    let userMessage: string;
+    if (classification.kind === "daily-quota") {
+      userMessage =
+        "Daily Gemini API quota exhausted (free-tier limit is 20 requests/day for gemini-2.5-flash) on all configured API keys. " +
+        "It resets at midnight Pacific Time — try again later, add another GEMINI_API_KEY_2/3 fallback key, or upgrade your Google AI Studio billing plan for a higher limit.";
+    } else if (classification.kind === "transient") {
+      const waitSeconds = classification.retryDelaySeconds ? Math.max(1, Math.ceil(classification.retryDelaySeconds)) : 60;
+      userMessage = `The AI model is experiencing high demand. Please wait about ${waitSeconds} seconds and try again.`;
+    } else if (rawMessage.toLowerCase().includes("api key") || rawMessage.toLowerCase().includes("unauthorized")) {
+      userMessage = "API key error — please verify your GEMINI_API_KEY in Vercel Environment Variables.";
+    } else if (rawMessage.toLowerCase().includes("could not be parsed") || rawMessage.toLowerCase().includes("too large")) {
+      userMessage = rawMessage;
+    } else {
+      userMessage = `Unable to extract bill. Please upload a higher quality document. (Detail: ${rawMessage})`;
+    }
+
     return res.status(500).json({ success: false, error: userMessage });
   }
 }

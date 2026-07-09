@@ -16,7 +16,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 {
-  const startupKeyCheck = validateGeminiApiKeyFormat(process.env.GEMINI_API_KEY);
+  const startupKeyCheck = validateConfiguredGeminiApiKeys();
   if (!startupKeyCheck.valid) {
     console.warn(`[EnergyBae] ⚠ GEMINI_API_KEY problem at startup: ${startupKeyCheck.reason}`);
   } else {
@@ -49,30 +49,61 @@ export function validateGeminiApiKeyFormat(apiKey: string | undefined): { valid:
   return { valid: true };
 }
 
-// Lazy initializer for Gemini Client
-let geminiClient: GoogleGenAI | null = null;
-export function getGeminiClient(): GoogleGenAI {
-  if (!geminiClient) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.warn("WARNING: GEMINI_API_KEY environment variable is not set. Real OCR/AI extraction will fail.");
-    }
-    geminiClient = new GoogleGenAI({
-      apiKey: apiKey || "MOCK_KEY",
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
+// ─── Gemini client pool with multi-key fallback ──────────────────────────────
+// Reads GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, ... (in that order).
+// When the active key's daily quota is exhausted (or it hits a rate limit), the
+// next configured key is tried automatically instead of failing the request.
+function getGeminiApiKeys(): string[] {
+  const keys: string[] = [];
+  const primary = process.env.GEMINI_API_KEY;
+  if (primary && primary.trim()) keys.push(primary.trim());
+  for (let i = 2; i <= 5; i++) {
+    const extra = process.env[`GEMINI_API_KEY_${i}`];
+    if (extra && extra.trim()) keys.push(extra.trim());
   }
-  return geminiClient;
+  return keys;
 }
 
-// ─── Retry utility ──────────────────────────────────────────────────────────
-// Returns true if the error is a transient model-side issue (503, rate limit,
-// quota exceeded, or network reset) that is worth retrying.
-export function isTransientError(err: any): boolean {
+const geminiClientsByKey = new Map<string, GoogleGenAI>();
+function getGeminiClientForKey(apiKey: string): GoogleGenAI {
+  let client = geminiClientsByKey.get(apiKey);
+  if (!client) {
+    client = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
+    geminiClientsByKey.set(apiKey, client);
+  }
+  return client;
+}
+
+export function getGeminiClient(): GoogleGenAI {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) {
+    console.warn("WARNING: GEMINI_API_KEY environment variable is not set. Real OCR/AI extraction will fail.");
+    return getGeminiClientForKey("MOCK_KEY");
+  }
+  return getGeminiClientForKey(keys[0]);
+}
+
+// True if at least one configured Gemini API key (GEMINI_API_KEY, GEMINI_API_KEY_2, ...)
+// looks well-formed.
+export function validateConfiguredGeminiApiKeys(): { valid: boolean; reason?: string } {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) {
+    return { valid: false, reason: "GEMINI_API_KEY is missing or empty." };
+  }
+  if (keys.some((k) => validateGeminiApiKeyFormat(k).valid)) {
+    return { valid: true };
+  }
+  return validateGeminiApiKeyFormat(keys[0]);
+}
+
+// ─── Gemini error classification ─────────────────────────────────────────────
+// A 429 can mean two very different things: a per-minute rate limit / momentary
+// 503 overload (worth retrying, recovers in seconds) or a per-DAY quota (free
+// tier: 20 requests/day for gemini-2.5-flash — retrying is pointless, it won't
+// recover until the quota resets, likely hours away). This distinguishes them.
+export type GeminiErrorClass = { kind: "daily-quota" | "transient" | "other"; retryDelaySeconds?: number };
+
+export function classifyGeminiError(err: any): GeminiErrorClass {
   // Node's `fetch` wraps the real network failure in `.cause` (e.g. ECONNRESET,
   // ETIMEDOUT, ENOTFOUND, EAI_AGAIN) and only exposes "fetch failed" on the
   // top-level error message — so the cause chain must be inspected too, or
@@ -81,29 +112,49 @@ export function isTransientError(err: any): boolean {
   let cur = err;
   let depth = 0;
   while (cur && depth < 5) {
-    if (cur.message) messages.push(String(cur.message).toLowerCase());
-    if (cur.code) messages.push(String(cur.code).toLowerCase());
+    if (cur.message) messages.push(String(cur.message));
+    if (cur.code) messages.push(String(cur.code));
     cur = cur.cause;
     depth++;
   }
-  const msg = messages.join(" ");
+  const lower = messages.join(" ").toLowerCase();
   const status: number | undefined = err?.status ?? err?.code;
 
+  let quotaId = "";
+  let retryDelaySeconds: number | undefined;
+  for (const m of messages) {
+    try {
+      const details = JSON.parse(m)?.error?.details;
+      if (!Array.isArray(details)) continue;
+      const quotaFailure = details.find((d: any) => d["@type"]?.includes("QuotaFailure"));
+      if (quotaFailure?.violations?.[0]?.quotaId) quotaId = quotaFailure.violations[0].quotaId;
+      const retryInfo = details.find((d: any) => d["@type"]?.includes("RetryInfo"));
+      const secs = retryInfo?.retryDelay ? parseFloat(String(retryInfo.retryDelay)) : undefined;
+      if (Number.isFinite(secs)) retryDelaySeconds = secs;
+    } catch {
+      // not a structured Google error body — ignore
+    }
+  }
+
+  const isRateLimited = status === 429 || lower.includes("429") || lower.includes("resource_exhausted");
+  if (isRateLimited && (quotaId.toLowerCase().includes("perday") || lower.includes("per day"))) {
+    return { kind: "daily-quota", retryDelaySeconds };
+  }
+
   // HTTP 503, 429 (rate-limit) or explicit UNAVAILABLE status from Gemini SDK
-  if (status === 503 || status === 429) return true;
-  // Gemini SDK wraps errors as { error: { code: 503, status: "UNAVAILABLE" } }
-  if (msg.includes("503") || msg.includes("unavailable") || msg.includes("overloaded")) return true;
-  if (msg.includes("429") || msg.includes("rate") || msg.includes("quota")) return true;
-  if (
-    msg.includes("econnreset") ||
-    msg.includes("etimedout") ||
-    msg.includes("enotfound") ||
-    msg.includes("eai_again") ||
-    msg.includes("socket") ||
-    msg.includes("fetch failed") ||
-    msg.includes("network")
-  ) return true;
-  return false;
+  const isTransient =
+    status === 503 || status === 429 ||
+    lower.includes("503") || lower.includes("unavailable") || lower.includes("overloaded") ||
+    lower.includes("429") || lower.includes("rate") || lower.includes("quota") ||
+    lower.includes("econnreset") || lower.includes("etimedout") || lower.includes("enotfound") ||
+    lower.includes("eai_again") || lower.includes("socket") || lower.includes("fetch failed") || lower.includes("network");
+
+  return isTransient ? { kind: "transient", retryDelaySeconds } : { kind: "other" };
+}
+
+// Back-compat boolean view — true for anything worth surfacing as a demand/rate issue.
+export function isTransientError(err: any): boolean {
+  return classifyGeminiError(err).kind !== "other";
 }
 
 // Exponential-backoff retry wrapper.
@@ -131,8 +182,11 @@ export async function withRetry<T>(
       const errMsg: string = err?.message || String(err);
       console.warn(`[EnergyBae][${label}] Attempt ${attempt} failed: ${errMsg}`);
 
-      if (!isTransientError(err)) {
-        console.error(`[EnergyBae][${label}] Non-transient error — will not retry.`);
+      const classification = classifyGeminiError(err);
+      if (classification.kind !== "transient") {
+        console.error(
+          `[EnergyBae][${label}] ${classification.kind === "daily-quota" ? "Daily quota exhausted" : "Non-transient error"} — will not retry.`
+        );
         throw err;
       }
       if (attempt < maxAttempts) {
@@ -140,6 +194,41 @@ export async function withRetry<T>(
         console.log(`[EnergyBae][${label}] Transient error. Waiting ${delay}ms before retry...`);
         await new Promise((res) => setTimeout(res, delay));
       }
+    }
+  }
+  throw lastError;
+}
+
+// ─── Multi-key Gemini call with automatic fallback ───────────────────────────
+// Runs `fn` against each configured Gemini API key in order, retrying transient
+// errors within a key via withRetry. Only moves to the next key when the current
+// key's error is quota/rate-limit related.
+export async function withGeminiKeyFallback<T>(
+  label: string,
+  fn: (client: GoogleGenAI) => Promise<T>,
+  maxAttemptsPerKey = 2,
+  baseDelayMs = 2000
+): Promise<T> {
+  const keys = getGeminiApiKeys();
+  if (keys.length === 0) throw new Error("GEMINI_API_KEY is not set.");
+
+  let lastError: any;
+  for (let i = 0; i < keys.length; i++) {
+    const client = getGeminiClientForKey(keys[i]);
+    const keyLabel = keys.length > 1 ? `${label} key${i + 1}/${keys.length}` : label;
+    try {
+      return await withRetry(keyLabel, () => fn(client), maxAttemptsPerKey, baseDelayMs);
+    } catch (err: any) {
+      lastError = err;
+      const classification = classifyGeminiError(err);
+      const hasNextKey = i < keys.length - 1;
+      if (hasNextKey && classification.kind !== "other") {
+        console.warn(
+          `[EnergyBae][${label}] Key ${i + 1}/${keys.length} exhausted (${classification.kind}) — falling back to key ${i + 2}/${keys.length}.`
+        );
+        continue;
+      }
+      throw err;
     }
   }
   throw lastError;
@@ -531,11 +620,10 @@ const SAMPLE_MSEDCL_DATA = {
 // sanitizer, Excel template, and processing log). Generic infra is injected
 // so this never needs to import back from server.ts.
 registerCommercialRoutes(app, {
-  getGeminiClient,
-  withRetry,
-  isTransientError,
+  withGeminiKeyFallback,
+  classifyGeminiError,
   detectPdfPageCount,
-  validateGeminiApiKeyFormat,
+  validateConfiguredGeminiApiKeys,
 });
 
 // API Endpoint - Check system status
@@ -568,8 +656,7 @@ app.post("/api/extract", async (req, res) => {
   }
 
   // Real Gemini visual extraction
-  const apiKey = process.env.GEMINI_API_KEY;
-  const keyCheck = validateGeminiApiKeyFormat(apiKey);
+  const keyCheck = validateConfiguredGeminiApiKeys();
   if (!keyCheck.valid) {
     console.error(`[EnergyBae] ✗ Gemini API key validation failed: ${keyCheck.reason}`);
     return res.status(400).json({
@@ -627,8 +714,6 @@ app.post("/api/extract", async (req, res) => {
       throw new Error("Invalid base64 encoding detected — round-trip verification failed.");
     }
 
-    const ai = getGeminiClient();
-
     const filePart = {
       inlineData: {
         mimeType: detectedMime,
@@ -637,17 +722,16 @@ app.post("/api/extract", async (req, res) => {
     };
     const textPart = { text: MSEDCL_PROMPT };
 
-    // ── 5. Gemini OCR call with exponential-backoff retry ──────────────────────
+    // ── 5. Gemini OCR call with exponential-backoff retry + multi-key fallback ──
     // Strategy: send the FULL document (Gemini 2.5-flash natively understands
     // multi-page PDFs). If the model returns 503 / UNAVAILABLE / rate-limit,
-    // retry up to 4 times total with 2 s → 4 s → 8 s delays.
-    // This makes the pipeline robust against transient demand spikes without
-    // requiring any page splitting or external PDF library.
+    // retry up to 4 times total with 2 s → 4 s → 8 s delays; if the active key's
+    // daily quota is exhausted, fall back to the next configured key.
     console.log(`[EnergyBae] Sending document to Gemini 2.5-flash (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)...`);
 
-    const response = await withRetry(
+    const response = await withGeminiKeyFallback(
       `Gemini-OCR-${pageCount}pg`,
-      () =>
+      (ai) =>
         ai.models.generateContent({
           model: "gemini-2.5-flash",
           contents: { parts: [filePart, textPart] },
@@ -739,10 +823,16 @@ app.post("/api/extract", async (req, res) => {
     // Never expose raw Gemini API error JSON (like the 503 JSON blob) to the UI.
     let userMessage: string;
 
-    if (isTransientError(error)) {
+    const classification = classifyGeminiError(error);
+    if (classification.kind === "daily-quota") {
       userMessage =
-        "The AI model is experiencing high demand and did not respond after 4 retry attempts. " +
-        "This is a temporary issue on Google's side. Please wait 1–2 minutes and try again. " +
+        "Daily Gemini API quota exhausted (free-tier limit is 20 requests/day for gemini-2.5-flash) on all configured API keys. " +
+        "It resets at midnight Pacific Time — try again later, add another GEMINI_API_KEY_2/3 fallback key, or upgrade your Google AI Studio billing plan for a higher limit. " +
+        "(Tip: use the sample bill to verify the rest of the pipeline without consuming quota.)";
+    } else if (classification.kind === "transient") {
+      const waitSeconds = classification.retryDelaySeconds ? Math.max(1, Math.ceil(classification.retryDelaySeconds)) : 60;
+      userMessage =
+        `The AI model is experiencing high demand. Please wait about ${waitSeconds} seconds and try again. ` +
         "(Tip: If this keeps happening, try the sample bill to verify the rest of the pipeline is working.)";
     } else if (
       rawMessage.toLowerCase().includes("api key") ||
@@ -752,10 +842,6 @@ app.post("/api/extract", async (req, res) => {
       userMessage =
         "API key error — the Gemini API key is invalid or not authorised. " +
         "Please verify your GEMINI_API_KEY in the environment Secrets panel.";
-    } else if (rawMessage.toLowerCase().includes("quota")) {
-      userMessage =
-        "API quota exceeded for this billing period. " +
-        "Please check your Google AI Studio quota limits or try again after the quota resets.";
     } else if (rawMessage.toLowerCase().includes("too large") || rawMessage.toLowerCase().includes("413")) {
       userMessage = rawMessage;
     } else if (rawMessage.toLowerCase().includes("could not be parsed") || rawMessage.toLowerCase().includes("parse")) {

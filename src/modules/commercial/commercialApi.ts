@@ -14,11 +14,15 @@ import { buildBillingHistoryWindow } from "./commercialCalculations";
 import { CommercialBillData } from "./types";
 
 export interface CommercialApiDeps {
-  getGeminiClient: () => GoogleGenAI;
-  withRetry: <T>(label: string, fn: () => Promise<T>, maxAttempts?: number, baseDelayMs?: number) => Promise<T>;
-  isTransientError: (err: any) => boolean;
+  withGeminiKeyFallback: <T>(
+    label: string,
+    fn: (client: GoogleGenAI) => Promise<T>,
+    maxAttemptsPerKey?: number,
+    baseDelayMs?: number
+  ) => Promise<T>;
+  classifyGeminiError: (err: any) => { kind: "daily-quota" | "transient" | "other"; retryDelaySeconds?: number };
   detectPdfPageCount: (buffer: Buffer) => number;
-  validateGeminiApiKeyFormat: (apiKey: string | undefined) => { valid: boolean; reason?: string };
+  validateConfiguredGeminiApiKeys: () => { valid: boolean; reason?: string };
 }
 
 // ─── Prompt + schema (commercial/industrial/HT/TOD bills only) ────────────
@@ -290,7 +294,7 @@ function appendCommercialProcessingLog(entry: Record<string, any>) {
 
 // ─── Route registration ────────────────────────────────────────────────────
 export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) {
-  const { getGeminiClient, withRetry, isTransientError, detectPdfPageCount, validateGeminiApiKeyFormat } = deps;
+  const { withGeminiKeyFallback, classifyGeminiError, detectPdfPageCount, validateConfiguredGeminiApiKeys } = deps;
 
   app.post("/api/commercial/extract", async (req, res) => {
     const { fileData, fileName } = req.body;
@@ -303,8 +307,7 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
       return res.status(400).json({ success: false, error: "No file data provided." });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    const keyCheck = validateGeminiApiKeyFormat(apiKey);
+    const keyCheck = validateConfiguredGeminiApiKeys();
     if (!keyCheck.valid) {
       return res.status(400).json({
         success: false,
@@ -332,15 +335,14 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
       const isPdf = detectedMime === "application/pdf";
       const pageCount = isPdf ? detectPdfPageCount(fileBuffer) : 1;
 
-      const ai = getGeminiClient();
       const filePart = { inlineData: { mimeType: detectedMime, data: fileBuffer.toString("base64") } };
       const textPart = { text: COMMERCIAL_PROMPT };
 
       console.log(`[EnergyBae][Commercial] Sending document to Gemini 2.5-flash (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)...`);
 
-      const response = await withRetry(
+      const response = await withGeminiKeyFallback(
         `Gemini-Commercial-OCR-${pageCount}pg`,
-        () =>
+        (ai) =>
           ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: { parts: [filePart, textPart] },
@@ -357,11 +359,18 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
 
       let parsedJson: any = {};
       const rawText = response.text || "";
+      console.log(
+        `[EnergyBae][Commercial] Gemini response received — ${rawText.length} chars` +
+          (response.usageMetadata
+            ? ` | tokens: prompt=${response.usageMetadata.promptTokenCount ?? "?"} output=${response.usageMetadata.candidatesTokenCount ?? "?"} total=${response.usageMetadata.totalTokenCount ?? "?"}`
+            : "")
+      );
       try {
         const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
         parsedJson = JSON.parse(cleaned || "{}");
       } catch (parseErr: any) {
         console.error("[EnergyBae][Commercial] JSON parse error:", parseErr.message);
+        console.error("[EnergyBae][Commercial] Raw model text (first 500 chars):", rawText.slice(0, 500));
         throw new Error(
           "The AI model returned a response that could not be parsed as JSON. This usually happens when the " +
           "bill scan quality is too low or the document contains non-bill content."
@@ -395,11 +404,19 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
         errors: rawMessage,
       });
 
-      // Spec-mandated generic message — never crash the app, never expose raw API errors.
-      let userMessage = "Unable to extract bill. Please upload a higher quality document.";
-      if (isTransientError(error)) {
+      const classification = classifyGeminiError(error);
+      let userMessage: string;
+      if (classification.kind === "daily-quota") {
         userMessage =
-          "The AI model is experiencing high demand and did not respond after retrying. Please wait 1–2 minutes and try again.";
+          "Daily Gemini API quota exhausted (free-tier limit is 20 requests/day for gemini-2.5-flash) on all configured API keys. " +
+          "It resets at midnight Pacific Time — try again later, add another GEMINI_API_KEY_2/3 fallback key, or upgrade your Google AI Studio billing plan for a higher limit.";
+      } else if (classification.kind === "transient") {
+        const waitSeconds = classification.retryDelaySeconds ? Math.max(1, Math.ceil(classification.retryDelaySeconds)) : 60;
+        userMessage = `The AI model is experiencing high demand. Please wait about ${waitSeconds} seconds and try again.`;
+      } else if (rawMessage.toLowerCase().includes("could not be parsed")) {
+        userMessage = rawMessage;
+      } else {
+        userMessage = `Unable to extract bill. Please upload a higher quality document. (Detail: ${rawMessage})`;
       }
 
       res.status(500).json({ success: false, error: userMessage });

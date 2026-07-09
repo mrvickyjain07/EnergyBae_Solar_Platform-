@@ -56,7 +56,7 @@ export default function Navbar({
                   className="absolute inset-0 bg-gradient-to-br from-[var(--accent-green-light)]/15 to-[var(--bg-surface)] border border-[var(--accent-green)]/30 rounded-lg shadow-sm"
                 />
               )}
-              <span className="capitalize relative z-10">{tab === 'ocr' ? 'AI OCR Scanner' : tab === 'sizing' ? 'Solar Analytics' : tab === 'commercial' ? 'Commercial Bill Analysis' : tab}</span>
+              <span className="capitalize relative z-10">{tab === 'ocr' ? 'AI OCR Scanner' : tab === 'sizing' ? 'Home & Society' : tab === 'commercial' ? 'Commercial Bill Analysis' : tab}</span>
             </button>
           ))}
         </nav>
