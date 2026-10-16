@@ -62,7 +62,7 @@ export default function HeroSection({ onLaunchScanner, onTrySample }: HeroSectio
               {/* Badge */}
               <div className="animate-fade-in delay-100">
                 <div className="inline-flex items-center gap-2 rounded-full border border-[var(--accent-green)]/20 bg-[var(--accent-green)]/10 px-3 py-1.5 backdrop-blur-md transition-colors hover:bg-[var(--accent-green)]/15">
-                  <span className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[var(--accent-green)] flex items-center gap-2">
+                  <span className="text-xs sm:text-xs font-semibold text-[var(--accent-green)] flex items-center gap-2">
                     MSEDCL-Compliant Sizing Engine
                     <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent-green-light)]" />
                   </span>

@@ -1,8 +1,11 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
-import { RefreshCw, AlertCircle, FileSpreadsheet, Cloud } from "lucide-react";
-import Uploader from "../../components/Uploader";
+import { RefreshCw, AlertCircle, FileSpreadsheet, Cloud, Plus, X } from "lucide-react";
+import BillEnhancer from "../../components/BillEnhancer";
 import AnimatedNumber from "../../components/AnimatedNumber";
+import ScanProgress from "../../components/ScanProgress";
+import type { ScanStep } from "../../scanSteps";
 import {
   CommercialBillData,
   CommercialTodSlotReading,
@@ -17,9 +20,12 @@ import {
   computeTodUtilisation,
   computeMeterDerived,
   reconcileCharges,
-  computeSizingPipeline,
   computeValidationChecks,
+  DEFAULT_SIZING,
+  type SizingSettings,
 } from "./commercialCalculations";
+import { analyseCommercial } from "./consumptionSizing";
+import CiSizingPanel from "./CiSizingPanel";
 import CommercialGoogleSheetsExportModal from "./CommercialGoogleSheetsExportModal";
 import "./commercial-bill-analysis.css";
 
@@ -32,6 +38,12 @@ const OCR_STAGES = [
   "Generating Analysis...",
 ];
 
+// One checklist row per OCR stage, evenly spaced across 0–100%.
+const COMMERCIAL_SCAN_STEPS: ScanStep[] = OCR_STAGES.map((label, i) => ({
+  label: label.replace(/\.{3}$/, ""),
+  start: (i / OCR_STAGES.length) * 100,
+}));
+
 const fmtINR = (n: number) => "₹" + Math.round(n).toLocaleString("en-IN");
 const fmtNum = (n: number) => Math.round(n).toLocaleString("en-IN");
 const pct = (n: number, places = 2) => `${(n * 100).toFixed(places)}%`;
@@ -40,16 +52,41 @@ function numOrBlank(v: number | "" | undefined): string {
   return v === "" || v === undefined ? "" : String(v);
 }
 
-export default function CommercialBillAnalysis() {
+/** A bill handed in by the unified Bill Analysis page (App.tsx). `nonce`
+ *  changes on every "Scan bill" click so re-scanning the same file re-runs. */
+export interface ExternalBillFile {
+  data: string;
+  name: string;
+  nonce: number;
+}
+
+/** The analysis as it stands — exactly the inputs the Excel export posts.
+ *  Handed to the parent so it can save the bill to a project; the parent
+ *  never recomputes or edits it. */
+export interface CommercialAnalysisResult extends SizingSettings {
+  /** The bill being sized (Several bills: the latest bill of the sized connection). */
+  data: CommercialBillData;
+  /** Several bills only: every extracted bill, so the server can re-consolidate. */
+  bills?: CommercialBillData[];
+}
+
+interface Props {
+  externalFile?: ExternalBillFile | null;
+  /** The unified page owns the upload box; hide this component's own. */
+  hideUploader?: boolean;
+  /** Called once a result exists (scan or manual entry) and after every edit. */
+  onResult?: (result: CommercialAnalysisResult) => void;
+}
+
+export default function CommercialBillAnalysis({ externalFile, hideUploader, onResult }: Props = {}) {
+  const canUseGoogle = useAuth().can("bill_analysis.import");
   const [data, setData] = useState<CommercialBillData>(() => ({
     ...buildBlankCommercialBillData(),
     billingHistory: buildBlankBillingRows(),
   }));
 
-  const [panelWatt, setPanelWatt] = useState(600);
-  const [sunHours, setSunHours] = useState(1400);
-  const [buffer, setBuffer] = useState(1.1);
-  const [systemCost, setSystemCost] = useState<number | "">("");
+  const [sizing, setSizing] = useState<SizingSettings>(DEFAULT_SIZING);
+  const updateSizing = (patch: Partial<SizingSettings>) => setSizing((prev) => ({ ...prev, ...patch }));
 
   const [fileData, setFileData] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -57,6 +94,10 @@ export default function CommercialBillAnalysis() {
   const [stageIdx, setStageIdx] = useState(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState(false);
+  // In the unified flow the analysis stays hidden until a scan succeeds (or
+  // the user opts into manual entry after a failed scan).
+  const [hasResult, setHasResult] = useState(false);
+  const showDashboard = !hideUploader || hasResult;
   const progressTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleFileLoaded = (base64: string, name: string) => {
@@ -65,8 +106,12 @@ export default function CommercialBillAnalysis() {
     setErrorMsg(null);
   };
 
-  const runExtraction = async () => {
-    if (!fileData || !fileName) return;
+  // `file` is passed explicitly when a scan is triggered from outside —
+  // state set in the same tick wouldn't be visible to this call yet.
+  const runExtraction = async (file?: { data: string; name: string }) => {
+    const fd = file?.data ?? fileData;
+    const fn = file?.name ?? fileName;
+    if (!fd || !fn) return;
     setIsLoading(true);
     setErrorMsg(null);
     setStageIdx(0);
@@ -79,7 +124,7 @@ export default function CommercialBillAnalysis() {
       const response = await fetch("/api/commercial/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileData, fileName }),
+        body: JSON.stringify({ fileData: fd, fileName: fn }),
       });
       const res = await response.json();
       if (progressTimer.current) clearInterval(progressTimer.current);
@@ -107,10 +152,11 @@ export default function CommercialBillAnalysis() {
             });
           }
           merged.confidence = typeof ocr.confidence === "number" ? ocr.confidence : prev.confidence;
-          merged.filename = fileName;
+          merged.filename = fn;
           return merged;
         });
         setStageIdx(OCR_STAGES.length);
+        setHasResult(true);
         setTimeout(() => setIsLoading(false), 500);
       } else {
         setIsLoading(false);
@@ -123,6 +169,20 @@ export default function CommercialBillAnalysis() {
     }
   };
 
+  useEffect(() => {
+    if (!externalFile) return;
+    setFileData(externalFile.data);
+    setFileName(externalFile.name);
+    setErrorMsg(null);
+    runExtraction(externalFile);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run only on a new scan
+  }, [externalFile?.nonce]);
+
+  useEffect(() => {
+    if (hasResult) onResult?.({ data, ...sizing });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onResult identity is the parent's concern
+  }, [hasResult, data, sizing]);
+
   const updateField = <K extends keyof CommercialBillData>(key: K, value: CommercialBillData[K]) => {
     setData((prev) => ({ ...prev, [key]: value }));
   };
@@ -131,6 +191,27 @@ export default function CommercialBillAnalysis() {
     setData((prev) => {
       const rows = [...prev.billingHistory];
       rows[idx] = { ...rows[idx], [key]: value };
+      return { ...prev, billingHistory: rows };
+    });
+  };
+
+  // Inserts a blank row just before the last one — the last row is always
+  // the "current" period by convention (see commercialCalculations.ts), so
+  // a manually-added month is always an older month, never bumps CURRENT.
+  const addBillingMonth = () => {
+    setData((prev) => {
+      const rows = [...prev.billingHistory];
+      const insertAt = rows.length > 0 ? rows.length - 1 : 0;
+      rows.splice(insertAt, 0, { monthLabel: "", units: "", billAmount: "" });
+      return { ...prev, billingHistory: rows };
+    });
+  };
+
+  const removeBillingMonth = (idx: number) => {
+    setData((prev) => {
+      if (prev.billingHistory.length <= 1) return prev;
+      const rows = [...prev.billingHistory];
+      rows.splice(idx, 1);
       return { ...prev, billingHistory: rows };
     });
   };
@@ -145,50 +226,19 @@ export default function CommercialBillAnalysis() {
   // ─── Derived calculations (single source of truth, shared with Excel export) ──
   const todMode = useMemo(() => detectTodMode(data.connectionType), [data.connectionType]);
   const stats = useMemo(() => computeBillingStats(data.billingHistory, data.fixedCharges), [data.billingHistory, data.fixedCharges]);
-  const tod = useMemo(() => computeTodUtilisation(data.todSlots, todMode), [data.todSlots, todMode]);
-  const meter = useMemo(
-    () => computeMeterDerived(data.prevReading, data.currReading, data.multiplyingFactor, data.kvahReading, data.recordedMD, data.contractDemand),
-    [data.prevReading, data.currReading, data.multiplyingFactor, data.kvahReading, data.recordedMD, data.contractDemand]
-  );
-  const recon = useMemo(
-    () =>
-      reconcileCharges({
-        energyCharges: data.energyCharges,
-        demandCharges: data.demandCharges,
-        fac: data.fac,
-        ed: data.ed,
-        tose: data.tose,
-        wheelingCharges: data.wheelingCharges,
-        delayedPayment: data.delayedPayment,
-        arrears: data.arrears,
-        creditAdjustment: data.creditAdjustment,
-        otherCharges: data.otherCharges,
-        billAmount: data.billAmount,
-      }),
-    [data.energyCharges, data.demandCharges, data.fac, data.ed, data.tose, data.wheelingCharges, data.delayedPayment, data.arrears, data.creditAdjustment, data.otherCharges, data.billAmount]
-  );
-  const pipeline = useMemo(
-    () =>
-      computeSizingPipeline(
-        stats.avgUnits,
-        stats.avgUnitCost,
-        stats.avgUnitCostRoundUp,
-        tod.bufferedFraction,
-        panelWatt,
-        sunHours,
-        buffer,
-        typeof systemCost === "number" ? systemCost : 0
-      ),
-    [stats.avgUnits, stats.avgUnitCost, stats.avgUnitCostRoundUp, tod.bufferedFraction, panelWatt, sunHours, buffer, systemCost]
-  );
-  const checks = useMemo(() => computeValidationChecks(stats, tod, meter, recon), [stats, tod, meter, recon]);
+  const tod = useMemo(() => computeTodUtilisation(data.todSlots), [data.todSlots]);
+  const meter = useMemo(() => computeMeterDerived(data), [data]);
+  const recon = useMemo(() => reconcileCharges(data), [data]);
+  // Sized on this bill's active energy (kWh) — same engine as Several bills and the exports.
+  const analysis = useMemo(() => analyseCommercial([{ data, sourceId: data.filename || "bill" }], sizing), [data, sizing]);
+  const checks = useMemo(() => computeValidationChecks(stats, tod, meter, recon, data), [stats, tod, meter, recon, data]);
 
   const handleExcelDownload = async () => {
     try {
       const response = await fetch("/api/commercial/export", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data, panelWatt, sunHours, buffer, systemCost: systemCost || 0 }),
+        body: JSON.stringify({ data, ...sizing }),
       });
       if (!response.ok) throw new Error("Failed to compile commercial workbook.");
       const blob = await response.blob();
@@ -207,77 +257,82 @@ export default function CommercialBillAnalysis() {
 
   return (
     <div className="space-y-6">
-      {/* Upload + extraction control — reuses the generic Uploader component */}
-      <div className="max-w-2xl mx-auto w-full space-y-4">
-        <div className="text-left">
-          <h3 className="text-base font-bold font-display text-[var(--text-primary)] tracking-wide uppercase">Commercial Bill Upload</h3>
-          <p className="text-xs text-[var(--text-muted)] font-mono">Load a commercial / industrial / HT / TOD MSEDCL bill to feed the analysis dashboard below.</p>
+      {/* Upload + extraction control. Hidden when the unified Bill Analysis
+          page owns the upload — progress and errors still show here. */}
+      {!hideUploader && (
+        <div className="glass-panel rounded-2xl p-6 space-y-4">
+          <div>
+            <h3 className="text-base font-semibold text-[var(--text-primary)]">Upload bill</h3>
+            <p className="text-sm text-[var(--text-muted)] mt-1">Commercial, industrial, HT or TOD MSEDCL bill.</p>
+          </div>
+          <BillEnhancer onFileLoaded={handleFileLoaded} isLoading={isLoading} selectedFileName={fileName} fileSrc={fileData} />
+          {fileName && !isLoading && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => runExtraction()}
+                className="h-9 px-4 rounded-lg bg-[var(--accent-solid)] text-sm font-medium text-white hover:opacity-90 shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw className="w-4 h-4" /> Begin extraction
+              </button>
+            </div>
+          )}
         </div>
-        <Uploader onFileLoaded={handleFileLoaded} isLoading={isLoading} selectedFileName={fileName} />
-        {fileName && !isLoading && (
-          <div className="flex justify-center">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              type="button"
-              onClick={runExtraction}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 text-xs font-bold font-display text-white hover:from-blue-500 hover:to-sky-400 shadow-md shadow-blue-950/50 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5" /> Begin Extraction
-            </motion.button>
+      )}
+      {isLoading && (
+        // stageIdx parks on the last stage until the server answers, then
+        // jumps to OCR_STAGES.length (= 100%) on success — so the final
+        // step only completes when extraction really has.
+        <ScanProgress
+          title="Reading your commercial bill"
+          steps={COMMERCIAL_SCAN_STEPS}
+          progress={(stageIdx / OCR_STAGES.length) * 100}
+          preview={fileData}
+          fileName={fileName}
+        />
+      )}
+      {errorMsg && (
+        <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 flex items-start gap-3 text-sm">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+          <div>
+            <p className="font-medium text-[var(--text-primary)]">Extraction failed</p>
+            <p className="mt-1 text-[var(--text-secondary)]">{errorMsg}</p>
+            {!hasResult && (
+              <button
+                type="button"
+                onClick={() => setHasResult(true)}
+                className="mt-3 h-8 px-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-[var(--text-primary)] hover:bg-[var(--hover-bg)] text-xs font-medium cursor-pointer"
+              >
+                Enter bill details manually
+              </button>
+            )}
           </div>
-        )}
-        {isLoading && (
-          <div className="glass-panel rounded-2xl p-6 bg-[var(--bg-card)] space-y-3">
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--accent-green)]">
-              <span className="w-2 h-2 rounded-full bg-[var(--accent-green)] animate-pulse" />
-              {OCR_STAGES[Math.min(stageIdx, OCR_STAGES.length - 1)]}
-            </div>
-            <div className="w-full h-1.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800/80">
-              <div
-                style={{ width: `${((stageIdx + 1) / OCR_STAGES.length) * 100}%` }}
-                className="h-full bg-gradient-to-r from-[var(--accent-green)] to-[var(--accent-green-light)] transition-all duration-300"
-              />
-            </div>
-          </div>
-        )}
-        {errorMsg && (
-          <div className="p-4 bg-red-950/25 border border-red-900/40 rounded-2xl flex items-start gap-3.5 text-xs text-red-300">
-            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-red-400" />
-            <span className="font-mono text-[11px]">{errorMsg}</span>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ─── Commercial dashboard (port of bill-analysis-v3.html) ─────────────── */}
-      <div className="cba rounded-2xl overflow-hidden border border-[var(--border-subtle)]">
+      {/* Hidden, not unmounted — keeps the worksheet's state intact. Inline
+          display wins over .cba's own `display:flex`. */}
+      <div className="cba" style={showDashboard ? undefined : { display: "none" }}>
         <div className="ocr-strip">
           <div className={`ocr-dot ${isLoading ? "pending" : data.filename ? "" : "idle"}`} />
-          <span className="ocr-txt">SCANNED DOCUMENT: <span className="hl">{data.filename || "—"}</span></span>
+          <span className="ocr-txt">Scanned document: <span className="hl">{data.filename || "—"}</span></span>
           <span className="ocr-txt">·</span>
-          <span className="ocr-txt">EXTRACTION CONFIDENCE: <span className="hl">{data.confidence > 0 ? `${data.confidence.toFixed(1)}%` : "—"}</span></span>
+          <span className="ocr-txt">Extraction confidence: <span className="hl">{data.confidence > 0 ? `${data.confidence.toFixed(1)}%` : "—"}</span></span>
         </div>
 
         <div className="cba-cstrip">
-          <span className="cstrip-lbl">SOLAR CONSTANTS ·</span>
-          <div className="citem"><span className="citem-k">PANEL</span>
-            <input className="citem-inp" value={panelWatt} onChange={(e) => setPanelWatt(Number(e.target.value) || 600)} />
+          <span className="cstrip-lbl">Solar constants ·</span>
+          <div className="citem"><span className="citem-k">Panel</span>
+            <input className="citem-inp" value={sizing.panelWatt} onChange={(e) => updateSizing({ panelWatt: Number(e.target.value) || 600 })} />
             <span className="citem-k">W</span></div>
           <div className="csep" />
-          <div className="citem"><span className="citem-k">SUN HRS</span>
-            <input className="citem-inp" style={{ width: 46 }} value={sunHours} onChange={(e) => setSunHours(Number(e.target.value) || 1400)} />
-            <span className="citem-k">hrs/yr</span></div>
-          <div className="csep" />
-          <div className="citem"><span className="citem-k">BUFFER</span>
-            <input className="citem-inp" style={{ width: 36 }} value={buffer} onChange={(e) => setBuffer(Number(e.target.value) || 1.1)} />
-          </div>
-          <div className="csep" />
-          <div className="citem"><span className="citem-k">DEMAND FLOOR</span>
-            <span className="citem-v">75%</span><span className="citem-k">× CD</span></div>
+          <div className="citem"><span className="citem-k">Yield (assumed)</span>
+            <span className="citem-v">{sizing.specificYield}</span><span className="citem-k">kWh/kWp/yr · edit in § 05</span></div>
           <div className="csep" />
           <div className="citem badge-auto">
-            <span className="citem-k" style={{ color: "var(--purple)" }}>TOD MODE (AUTO)</span>
-            <span className="citem-v" style={{ color: "var(--purple)" }}>{todMode === "LT" ? "LT-II C" : "HT"}</span>
+            <span className="citem-k" style={{ color: "var(--purple)" }}>TOD mode (auto)</span>
+            <span className="citem-v" style={{ color: "var(--purple)" }}>{data.connectionType ? (todMode === "LT" ? "LT-II C" : "HT") : "—"}</span>
           </div>
         </div>
 
@@ -286,7 +341,7 @@ export default function CommercialBillAnalysis() {
           <div className="sec">
             <span className="sec-lbl">§ 01 — Consumer Master</span>
             <div className="sec-line" />
-            <span className="badge badge-auto">FROM OCR</span>
+            <span className="badge badge-auto">From OCR</span>
           </div>
           <div className="g2">
             <div className="card">
@@ -301,12 +356,13 @@ export default function CommercialBillAnalysis() {
                 <div className="f"><div className="flbl">Address</div>
                   <input className="inp" placeholder="Address from bill" value={data.address} onChange={(e) => updateField("address", e.target.value)} /></div>
                 <div className="fr3">
-                  <div className="f"><div className="flbl">Connection Type</div>
+                  <div className="f"><div className="flbl">Connection Type <span className="ocr-pill">Auto · OCR</span></div>
                     <select className="inp" value={data.connectionType} onChange={(e) => updateField("connectionType", e.target.value as CommercialBillData["connectionType"])}>
                       <option value="">—</option>
-                      <option value="LT">LT — 71 LT-II C</option>
+                      <option value="LT">LT</option>
                       <option value="HT">HT</option>
-                    </select></div>
+                    </select>
+                    <div className="hint">Drives TOD mode below — change if OCR misread it</div></div>
                   <div className="f"><div className="flbl">Category</div>
                     <select className="inp" value={data.category} onChange={(e) => updateField("category", e.target.value)}>
                       <option value="">—</option>
@@ -321,22 +377,60 @@ export default function CommercialBillAnalysis() {
               <div className="card-h"><span className="card-t">Technical Parameters</span></div>
               <div className="card-b">
                 <div className="fr3">
-                  <div className="f"><div className="flbl">Sanct. Load (kW)</div>
-                    <input className="inp" type="number" placeholder="e.g. 80" value={numOrBlank(data.sanctionedLoad)} onChange={(e) => updateField("sanctionedLoad", e.target.value === "" ? "" : Number(e.target.value))} /></div>
+                  <div className="f"><div className="flbl">Sanct. Load (as printed)</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" placeholder="e.g. 200" value={numOrBlank(data.sanctionedLoad)} onChange={(e) => updateField("sanctionedLoad", e.target.value === "" ? "" : Number(e.target.value))} />
+                      <select className="inp" style={{ width: 78 }} value={data.sanctionedLoadUnit} onChange={(e) => updateField("sanctionedLoadUnit", e.target.value as CommercialBillData["sanctionedLoadUnit"])}>
+                        <option value="">unit?</option><option>HP</option><option>kW</option><option>kVA</option>
+                      </select>
+                    </div>
+                    <div className="hint">{analysis.sanctioned.kw !== null ? (analysis.sanctioned.method === "HP × 0.746" ? `= ${analysis.sanctioned.kw} kW (HP × 0.746)` : `${analysis.sanctioned.kw} kW`) : analysis.sanctioned.warning ?? "Unit printed on the bill"}</div></div>
                   <div className="f"><div className="flbl">Contract Demand (KVA) <span className="req">*</span></div>
                     <input className="inp" type="number" placeholder="KVA" value={numOrBlank(data.contractDemand)} onChange={(e) => updateField("contractDemand", e.target.value === "" ? "" : Number(e.target.value))} />
-                    <div className="hint">▲ 75% demand floor rule</div></div>
-                  <div className="f"><div className="flbl">Fixed Charges (₹) <span className="req">*</span></div>
-                    <input className="inp" type="number" placeholder="per month" value={numOrBlank(data.fixedCharges)} onChange={(e) => updateField("fixedCharges", e.target.value === "" ? "" : Number(e.target.value))} />
-                    <div className="hint">▲ Varies per bill month</div></div>
+                    <div className="hint">kVA — never converted to kW</div></div>
+                  <div className="f"><div className="flbl">Fixed Charges (₹)</div>
+                    <input className="inp" type="number" placeholder="only if printed" value={numOrBlank(data.fixedCharges)} onChange={(e) => updateField("fixedCharges", e.target.value === "" ? "" : Number(e.target.value))} />
+                    <div className="hint">Only a printed "Fixed Charges" line · Demand Charges are a separate line</div></div>
+                </div>
+                <div className="fr3">
+                  <div className="f"><div className="flbl">Connected Load (as printed)</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" placeholder="optional" value={numOrBlank(data.connectedLoad)} onChange={(e) => updateField("connectedLoad", e.target.value === "" ? "" : Number(e.target.value))} />
+                      <select className="inp" style={{ width: 78 }} value={data.connectedLoadUnit} onChange={(e) => updateField("connectedLoadUnit", e.target.value as CommercialBillData["connectedLoadUnit"])}>
+                        <option value="">unit?</option><option>HP</option><option>kW</option><option>kVA</option>
+                      </select>
+                    </div>
+                    <div className="hint">{analysis.connected.kw !== null && data.connectedLoadUnit === "HP" ? `= ${analysis.connected.kw} kW (HP × 0.746)` : "Kept separate from sanctioned load and contract demand"}</div></div>
                 </div>
                 <div className="fr3">
                   <div className="f"><div className="flbl">Security Deposit (₹)</div>
                     <input className="inp" type="number" placeholder="₹" value={numOrBlank(data.securityDeposit)} onChange={(e) => updateField("securityDeposit", e.target.value === "" ? "" : Number(e.target.value))} /></div>
                   <div className="f"><div className="flbl">Meter Number</div>
                     <input className="inp" placeholder="Meter No." value={data.meterNo} onChange={(e) => updateField("meterNo", e.target.value)} /></div>
-                  <div className="f"><div className="flbl">TOD Mode</div>
-                    <input className="inp" readOnly value={todMode === "LT" ? "LT-II C (auto)" : "HT (auto)"} /></div>
+                  <div className="f"><div className="flbl">TOD Mode <span className="ocr-pill">Auto · OCR</span></div>
+                    <input className="inp" readOnly placeholder="Auto from OCR" value={data.connectionType ? (todMode === "LT" ? "LT (auto)" : "HT (auto)") : ""} />
+                    <div className="hint">Uses the LT-II C TOD ruleset — see § 04 below</div></div>
+                </div>
+                <div className="fr2">
+                  <div className="f"><div className="flbl">Existing Solar <span className="ocr-pill">Auto · OCR</span></div>
+                    <input
+                      className="inp"
+                      readOnly
+                      placeholder="Auto from OCR"
+                      value={
+                        !data.hasSolar
+                          ? "None detected"
+                          : data.solarCapacityKw !== "" && Number(data.solarCapacityKw) > 0
+                          ? `${data.solarCapacityKw} kW (nameplate)`
+                          : data.solarGenerationUnits !== "" && Number(data.solarGenerationUnits) > 0
+                          ? `${fmtNum(Number(data.solarGenerationUnits))} kWh generated (no nameplate on bill)`
+                          : ""
+                      }
+                    />
+                    <div className="hint">Installed on this bill — independent of the § 05 recommended sizing below</div></div>
+                  <div className="f"><div className="flbl">Solar Source Field</div>
+                    <input className="inp" readOnly placeholder="—" value={data.solarSourceField} />
+                    <div className="hint">Audit trail: which label/table this was read from</div></div>
                 </div>
               </div>
             </div>
@@ -344,24 +438,43 @@ export default function CommercialBillAnalysis() {
 
           {/* §02 Billing History */}
           <div className="sec">
-            <span className="sec-lbl">§ 02 — Billing History (12 months)</span>
+            <span className="sec-lbl">§ 02 — Billing History ({data.billingHistory.length} months)</span>
             <div className="sec-line" />
-            <span className="badge badge-auto">FROM OCR TABLE</span>
+            <span className="badge badge-auto">Reference only · not used for sizing</span>
           </div>
           <div className="card">
             <div className="card-h">
               <span className="card-t">Monthly Bill Data</span>
-              <span style={{ fontSize: 9, color: "var(--muted)" }}>UNIT COST = (BILL − FIXED CHARGES) ÷ UNITS</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>Units measured in{" "}
+                  <select className="ti" style={{ width: 80 }} value={data.billingHistoryUnit} onChange={(e) => updateField("billingHistoryUnit", e.target.value as CommercialBillData["billingHistoryUnit"])}>
+                    <option value="unknown">unit?</option><option>kVAh</option><option>kWh</option>
+                  </select>
+                  {" "}· bill ÷ units is an all-in ratio, not an energy rate</span>
+                <button
+                  type="button"
+                  onClick={addBillingMonth}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    fontSize: 12, fontWeight: 700,
+                    color: "var(--cyan)", background: "transparent", border: "1px solid var(--cyan)",
+                    borderRadius: 6, padding: "3px 8px", cursor: "pointer",
+                  }}
+                >
+                  <Plus size={11} /> Add Month
+                </button>
+              </div>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="tbl">
                 <thead><tr>
                   <th style={{ width: 26 }}>#</th>
-                  <th>MONTH</th>
-                  <th className="r">UNITS (kWh)</th>
-                  <th className="r">BILL AMOUNT (₹)</th>
-                  <th className="r">UNIT COST (₹/kWh)</th>
-                  <th className="c">STATUS</th>
+                  <th>Month</th>
+                  <th className="r">Units ({data.billingHistoryUnit === "unknown" ? "billed" : data.billingHistoryUnit})</th>
+                  <th className="r">Bill amount (₹)</th>
+                  <th className="r" title="Bill amount (incl. demand, duty, taxes) ÷ history units — not an energy rate">Bill ÷ units (₹, all-in)</th>
+                  <th className="c">Status</th>
+                  <th style={{ width: 28 }} />
                 </tr></thead>
                 <tbody>
                   {data.billingHistory.map((row, idx) => {
@@ -382,11 +495,23 @@ export default function CommercialBillAnalysis() {
                           {flags?.unitCost !== null && flags?.unitCost !== undefined ? `₹${flags.unitCost.toFixed(4)}` : "--"}
                         </td>
                         <td className="tc">
-                          {isCurrent ? <span className="flag f-cur">CURRENT</span>
-                            : flags?.isOutlier ? <span className="flag f-out">OUTLIER</span>
-                            : flags?.isDemandOnly ? <span className="flag f-dem">DEMAND ONLY</span>
-                            : flags?.isZero ? <span className="flag f-zero">ZERO</span>
+                          {isCurrent ? <span className="flag f-cur">Current</span>
+                            : flags?.isOutlier ? <span className="flag f-out">Outlier</span>
+                            : flags?.isDemandOnly ? <span className="flag f-dem">Demand only</span>
+                            : flags?.isZero ? <span className="flag f-zero">Zero</span>
                             : null}
+                        </td>
+                        <td className="tc">
+                          {data.billingHistory.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeBillingMonth(idx)}
+                              title="Remove this month"
+                              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, border: "none", background: "transparent", color: "var(--muted)", cursor: "pointer" }}
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -394,17 +519,11 @@ export default function CommercialBillAnalysis() {
                 </tbody>
                 <tfoot>
                   <tr style={{ background: "var(--surf)" }}>
-                    <td colSpan={2} style={{ fontSize: 9, letterSpacing: 1.5, color: "var(--cyan)", padding: 9 }}>AVERAGE (VALID MONTHS)</td>
-                    <td className="tr cc">{stats.avgUnits > 0 ? `${fmtNum(stats.avgUnits)} kWh` : "--"}</td>
+                    <td colSpan={2} style={{ fontSize: 12, color: "var(--cyan)", padding: 9 }}>Average (valid months)</td>
+                    <td className="tr cc">{stats.avgUnits > 0 ? `${fmtNum(stats.avgUnits)} ${data.billingHistoryUnit === "unknown" ? "units" : data.billingHistoryUnit}` : "--"}</td>
                     <td className="tr cc">{stats.avgBillAmount > 0 ? fmtINR(stats.avgBillAmount) : "--"}</td>
                     <td className="tr cc">{stats.avgUnitCost > 0 ? `₹${stats.avgUnitCost.toFixed(4)}` : "--"}</td>
-                    <td />
-                  </tr>
-                  <tr style={{ background: "var(--surf)" }}>
-                    <td colSpan={2} style={{ fontSize: 9, letterSpacing: 1.5, color: "var(--amber)", padding: "9px 9px 6px" }}>ROUNDUP(AVG UNIT COST, 0.5)</td>
                     <td /><td />
-                    <td className="tr ca">{stats.avgUnitCostRoundUp > 0 ? `₹${stats.avgUnitCostRoundUp.toFixed(2)}` : "--"}</td>
-                    <td />
                   </tr>
                 </tfoot>
               </table>
@@ -415,39 +534,64 @@ export default function CommercialBillAnalysis() {
           <div className="sec">
             <span className="sec-lbl">§ 03 — Current Bill Breakdown</span>
             <div className="sec-line" />
-            <span className="badge badge-auto">FROM OCR · RECONCILED ±₹10</span>
+            <span className="badge badge-auto">From OCR · reconciled ±₹10</span>
           </div>
           <div className="g2">
             <div className="card">
               <div className="card-h"><span className="card-t">Meter Readings</span></div>
               <div className="card-b">
                 <div className="fr2">
-                  <div className="f"><div className="flbl">Prev Reading (kWh)</div>
-                    <input className="inp" type="number" placeholder="Previous" value={numOrBlank(data.prevReading)} onChange={(e) => updateField("prevReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
-                  <div className="f"><div className="flbl">Curr Reading (kWh)</div>
-                    <input className="inp" type="number" placeholder="Current" value={numOrBlank(data.currReading)} onChange={(e) => updateField("currReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
+                  <div className="f"><div className="flbl">KWH register — previous</div>
+                    <input className="inp" type="number" placeholder="cumulative reading" value={numOrBlank(data.prevReading)} onChange={(e) => updateField("prevReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
+                  <div className="f"><div className="flbl">KWH register — current</div>
+                    <input className="inp" type="number" placeholder="cumulative reading" value={numOrBlank(data.currReading)} onChange={(e) => updateField("currReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
+                </div>
+                <div className="fr2">
+                  <div className="f"><div className="flbl">KVAH register — previous</div>
+                    <input className="inp" type="number" placeholder="cumulative reading" value={numOrBlank(data.kvahPrevReading)} onChange={(e) => updateField("kvahPrevReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
+                  <div className="f"><div className="flbl">KVAH register — current</div>
+                    <input className="inp" type="number" placeholder="cumulative reading" value={numOrBlank(data.kvahCurrReading)} onChange={(e) => updateField("kvahCurrReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
                 </div>
                 <div className="fr2">
                   <div className="f"><div className="flbl">Multiplying Factor</div>
                     <input className="inp" type="number" placeholder="1.00" value={numOrBlank(data.multiplyingFactor)} onChange={(e) => updateField("multiplyingFactor", e.target.value === "" ? "" : Number(e.target.value))} />
-                    <div className="hint">CT/PT ratio. LT=1. HT often &gt;1.</div></div>
-                  <div className="f"><div className="flbl">Assessed Units (kWh)</div>
-                    <input className="inp" readOnly value={meter.assessedUnits !== null ? meter.assessedUnits.toFixed(2) : ""} placeholder="(Curr−Prev)×MF" />
-                    <div className="hint">Auto-computed</div></div>
+                    <div className="hint">CT/PT ratio printed on the bill</div></div>
+                  <div className="f"><div className="flbl">Register check (curr − prev) × MF</div>
+                    <input className="inp" readOnly value={[meter.assessedUnits !== null ? `${fmtNum(meter.assessedUnits)} kWh` : "", meter.kvahFromRegisters !== null ? `${fmtNum(meter.kvahFromRegisters)} kVAh` : ""].filter(Boolean).join(" · ")} placeholder="from the registers" />
+                    <div className="hint">Cross-check only — the printed totals below are used</div></div>
                 </div>
                 <div className="fr2">
-                  <div className="f"><div className="flbl">kVAh Reading</div>
-                    <input className="inp" type="number" placeholder="Apparent energy" value={numOrBlank(data.kvahReading)} onChange={(e) => updateField("kvahReading", e.target.value === "" ? "" : Number(e.target.value))} /></div>
-                  <div className="f"><div className="flbl">Power Factor</div>
-                    <input className="inp" readOnly value={meter.powerFactor !== null ? meter.powerFactor.toFixed(4) : ""} placeholder="kWh ÷ kVAh" />
-                    <div className="hint">Penalty &lt;0.90 · Incentive &gt;0.95</div></div>
+                  <div className="f"><div className="flbl">Active energy consumption (kWh) <span className="ocr-pill">Sizing input</span></div>
+                    <input className="inp" type="number" placeholder={meter.assessedUnits !== null ? `from readings: ${meter.assessedUnits.toFixed(0)}` : "KWH total consumption"} value={numOrBlank(data.activeKwh)} onChange={(e) => updateField("activeKwh", e.target.value === "" ? "" : Number(e.target.value))} />
+                    <div className="hint">Period consumption: KWH "Total Consumption"{data.activeKwh === "" && meter.assessedUnits !== null ? " · blank = (curr − prev) × MF" : ""}</div></div>
+                  <div className="f"><div className="flbl">Reading period</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="date" aria-label="Previous reading date" value={data.readingFrom} onChange={(e) => updateField("readingFrom", e.target.value)} />
+                      <input className="inp" type="date" aria-label="Current reading date" value={data.readingTo} onChange={(e) => updateField("readingTo", e.target.value)} />
+                    </div>
+                    <div className="hint">{analysis.baseline?.totalDays ? `${analysis.baseline.totalDays} days, used to annualise` : "Dates missing: the year is estimated as 12 × this month"}</div></div>
                 </div>
                 <div className="fr2">
-                  <div className="f"><div className="flbl">Recorded MD (KVA)</div>
-                    <input className="inp" type="number" placeholder="Peak demand" value={numOrBlank(data.recordedMD)} onChange={(e) => updateField("recordedMD", e.target.value === "" ? "" : Number(e.target.value))} /></div>
-                  <div className="f"><div className="flbl">Billed Demand (KVA)</div>
-                    <input className="inp inp-amber" readOnly value={meter.billedDemand !== null ? meter.billedDemand.toFixed(1) : ""} placeholder="MAX(MD, 75%×CD)" />
-                    <div className="hint">= MAX(recordedMD, 0.75 × CD)</div></div>
+                  <div className="f"><div className="flbl">Apparent energy consumption (kVAh)</div>
+                    <input className="inp" type="number" placeholder="KVAH total consumption" value={numOrBlank(data.kvahReading)} onChange={(e) => updateField("kvahReading", e.target.value === "" ? "" : Number(e.target.value))} />
+                    <div className="hint">Period consumption, kept separate — never used as kWh</div></div>
+                  <div className="f"><div className="flbl">Power factor (as printed)</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" step="0.001" aria-label="Average or assessed power factor" placeholder="Avg. / assessed" value={numOrBlank(data.avgPowerFactor)} onChange={(e) => updateField("avgPowerFactor", e.target.value === "" ? "" : Number(e.target.value))} />
+                      <input className="inp" type="number" step="0.001" aria-label="Billed power factor" placeholder="Billed" value={numOrBlank(data.billedPowerFactor)} onChange={(e) => updateField("billedPowerFactor", e.target.value === "" ? "" : Number(e.target.value))} />
+                    </div>
+                    <div className="hint">Avg. / assessed PF · billed PF — read from the bill, never computed</div></div>
+                </div>
+                <div className="fr2">
+                  <div className="f"><div className="flbl">Recorded MD</div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input className="inp" type="number" aria-label="Recorded maximum demand in kW" placeholder="kW" value={numOrBlank(data.recordedMdKw)} onChange={(e) => updateField("recordedMdKw", e.target.value === "" ? "" : Number(e.target.value))} />
+                      <input className="inp" type="number" aria-label="Recorded maximum demand in kVA" placeholder="kVA" value={numOrBlank(data.recordedMD)} onChange={(e) => updateField("recordedMD", e.target.value === "" ? "" : Number(e.target.value))} />
+                    </div>
+                    <div className="hint">KW (MD) · KVA (MD)</div></div>
+                  <div className="f"><div className="flbl">Billed Demand (as printed{data.billedDemandUnit ? `, ${data.billedDemandUnit}` : ""})</div>
+                    <input className="inp" type="number" placeholder="from the bill" value={numOrBlank(data.billedDemand)} onChange={(e) => updateField("billedDemand", e.target.value === "" ? "" : Number(e.target.value))} />
+                    <div className="hint">{meter.demandFloorKva !== null ? `75% of contract demand = ${meter.demandFloorKva.toFixed(1)} kVA (screening only — tariff rule not verified)` : "Never replaced by a derived rule"}</div></div>
                 </div>
               </div>
             </div>
@@ -455,15 +599,16 @@ export default function CommercialBillAnalysis() {
               <div className="card-h">
                 <span className="card-t">Charge Components</span>
                 {data.billAmount !== "" && Number(data.billAmount) > 0 && (
-                  <span className={`recon ${recon.withinTolerance ? "ok" : "er"}`}>
-                    {recon.withinTolerance ? `✓ OK ±₹${recon.diff}` : `✗ MISMATCH ₹${recon.diff}`}
+                  <span className={`recon ${recon.withinTolerance && recon.currentOk !== false ? "ok" : "er"}`}>
+                    {recon.currentOk === false ? `✗ CURRENT ≠ SUM ₹${recon.currentDiff}` : recon.withinTolerance ? `✓ OK ±₹${recon.diff}` : `✗ MISMATCH ₹${recon.diff}`}
                   </span>
                 )}
               </div>
               <div className="card-b" style={{ padding: "9px 13px" }}>
                 {([
-                  ["energyCharges", "Energy Charges (TOD EC)", "v", "VAR"],
-                  ["demandCharges", "Demand Charges", "fi", "FIXED"],
+                  ["energyCharges", "Energy Charges", "v", "VAR"],
+                  ["todCharges", "TOD Tariff EC (− = rebate)", "v", "VAR"],
+                  ["demandCharges", "Demand Charges", "fi", "DEMAND"],
                   ["fac", "Fuel Adj. Charge (FAC)", "v", "VAR"],
                   ["ed", "Electricity Duty (ED)", "v", "VAR"],
                   ["tose", "Tax on Sale (ToSE)", "v", "VAR"],
@@ -471,7 +616,7 @@ export default function CommercialBillAnalysis() {
                   ["delayedPayment", "Delayed Payment Charges", "co", "COND"],
                   ["arrears", "Arrears", "co", "COND"],
                   ["creditAdjustment", "Credit Adjustment (SD Interest etc.)", "cr", "CREDIT"],
-                  ["otherCharges", "Other Charges", "fi", "FIXED"],
+                  ["otherCharges", "Other (PF penal, excess demand, debit adj.)", "fi", "OTHER"],
                 ] as [keyof CommercialBillData, string, string, string][]).map(([key, label, tagClass, tagLabel]) => (
                   <div className="cr-row" key={key}>
                     <span className="cr-name">{label}</span>
@@ -485,10 +630,20 @@ export default function CommercialBillAnalysis() {
                     />
                   </div>
                 ))}
+                <div className="cr-row" style={{ marginTop: 6 }}>
+                  <span className="cr-name">Σ current charges {fmtINR(recon.currentCharges)} vs printed Total Current Bill</span>
+                  <input
+                    className="cr-inp"
+                    type="number"
+                    placeholder="As on bill"
+                    value={numOrBlank(data.currentBillTotal)}
+                    onChange={(e) => updateField("currentBillTotal", e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                </div>
                 <div className="ctot">
                   <div>
                     <div className="ctot-k">Reconstructed Total</div>
-                    <div style={{ fontSize: 8, color: "var(--muted)", marginTop: 2 }}>ROUND(Σ, −1) · TOLERANCE ±₹10</div>
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Round(current + delayed + arrears − credit, nearest ₹10) · ±₹10</div>
                   </div>
                   <div className="ctot-v">{fmtINR(recon.reconstructedTotal)}</div>
                 </div>
@@ -511,32 +666,26 @@ export default function CommercialBillAnalysis() {
           <div className="sec">
             <span className="sec-lbl">§ 04 — Time-of-Day (TOD) Slot Data</span>
             <div className="sec-line" />
-            <span className="badge badge-auto">AUTO-DETECTED FROM CONNECTION TYPE</span>
+            <span className="badge badge-auto">Auto-detected from connection type</span>
           </div>
           <div className="info-box">
-            {todMode === "LT" ? (
-              <>
-                <span className="hl">LT-II C</span> — Utilisable TOD = <span className="hlg">Slot B (full %)</span> + <span className="hlg">Slot C (full %)</span> + <span className="hlp">Slot D ÷7</span> (only the 17:00–18:00 pre-sunset hour captured) + Slot A = 0 (night). <span className="hla">+10% buffer (×1.1)</span> applied on total.
-              </>
-            ) : (
-              <>
-                <span className="hl">HT</span> — Utilisable TOD = <span className="hlg">Slot B (full %)</span> + <span className="hlg">Slot C (full %)</span>. Slot A and D = 0 utilisable. <span className="hla">No buffer applied</span> — fraction used directly.
-              </>
-            )}
+            TOD band proxy = <span className="hlg">Slot B</span> + <span className="hlg">Slot C</span> share of all TOD units (06:00–17:00 tariff bands).
+            These are billed units by tariff band, not measured daytime load: the proxy is <span className="hla">low confidence</span>, shown
+            apart from the energy-based size, and no multiplier is applied to it.
           </div>
           <div className="card">
             <div className="card-h">
               <span className="card-t">TOD Slot Entry</span>
-              <span style={{ fontSize: 9, color: "var(--muted)" }}>UNIT TYPE: {todMode === "LT" ? "kVAh (LT-II C)" : "kWh (HT)"}</span>
+              <span style={{ fontSize: 12, color: "var(--muted)" }}>Units as billed{data.billingHistoryUnit !== "unknown" ? ` (${data.billingHistoryUnit})` : ""}</span>
             </div>
             <div style={{ overflowX: "auto" }}>
               <table className="tbl">
                 <thead><tr>
-                  <th>SLOT</th><th>TIME RANGE</th>
-                  <th className="r">UNITS</th>
-                  <th className="r">% SHARE</th>
-                  <th className="r">UTILISABLE %</th>
-                  <th className="c">RULE</th>
+                  <th>Slot</th><th>Time range</th>
+                  <th className="r">Units</th>
+                  <th className="r">% share</th>
+                  <th className="r">Utilisable %</th>
+                  <th className="c">Rule</th>
                 </tr></thead>
                 <tbody>
                   {[
@@ -557,9 +706,8 @@ export default function CommercialBillAnalysis() {
                         <td className="tr cc">{result.pctShare > 0 ? pct(result.pctShare) : "--"}</td>
                         <td className="tr" style={{ color: "var(--purple)", fontWeight: 700 }}>{result.utilisable > 0 ? pct(result.utilisable, 4) : "0"}</td>
                         <td className="tc">
-                          {result.rule === "FULL" && <span className="ut-full">FULL %</span>}
-                          {result.rule === "DIV7" && <span className="ut-7th">÷7 (1/7 hr)</span>}
-                          {result.rule === "NONE" && <span className="ut-no">NO SOLAR</span>}
+                          {result.rule === "FULL" && <span className="ut-full">Full %</span>}
+                          {result.rule === "NONE" && <span className="ut-no">No solar</span>}
                         </td>
                       </tr>
                     );
@@ -567,17 +715,10 @@ export default function CommercialBillAnalysis() {
                 </tbody>
                 <tfoot>
                   <tr style={{ background: "var(--surf)" }}>
-                    <td colSpan={2} style={{ fontSize: 9, letterSpacing: 1.5, color: "var(--cyan)", padding: 9 }}>TOTAL</td>
+                    <td colSpan={2} style={{ fontSize: 12, color: "var(--cyan)", padding: 9 }}>Total</td>
                     <td className="tr cc">{tod.totalUnits > 0 ? fmtNum(tod.totalUnits) : "--"}</td>
                     <td className="tr cc">100%</td>
                     <td className="tr" style={{ fontSize: 13, fontWeight: 800 }}>{tod.utilisableFraction > 0 ? pct(tod.utilisableFraction, 4) : "--"}</td>
-                    <td />
-                  </tr>
-                  <tr style={{ background: "var(--surf)" }}>
-                    <td colSpan={4} style={{ fontSize: 9, letterSpacing: 1.5, color: "var(--amber)", padding: "6px 9px" }}>
-                      {todMode === "LT" ? "WITH +10% BUFFER (×1.1)" : "NO BUFFER APPLIED (HT MODEL)"}
-                    </td>
-                    <td className="tr ca" style={{ fontSize: 13, fontWeight: 800 }}>{tod.bufferedFraction > 0 ? pct(tod.bufferedFraction, 4) : "--"}</td>
                     <td />
                   </tr>
                 </tfoot>
@@ -585,31 +726,6 @@ export default function CommercialBillAnalysis() {
             </div>
           </div>
 
-          {/* §05 Solar Sizing Pipeline */}
-          <div className="sec">
-            <span className="sec-lbl">§ 05 — Solar Sizing Pipeline</span>
-            <div className="sec-line" />
-            <span className="badge">EXACT FORMULA ENGINE</span>
-          </div>
-          <div className="pipe">
-            {[
-              { n: "01", k: "AVG UNITS", v: stats.avgUnits > 0 ? `${fmtNum(stats.avgUnits)} kWh` : "--", done: stats.avgUnits > 0 },
-              { n: "02", k: "SOLAR CAP (raw)", v: pipeline.solarCapacityRawKwp > 0 ? `${pipeline.solarCapacityRawKwp.toFixed(2)} kWp` : "--", done: pipeline.solarCapacityRawKwp > 0 },
-              { n: "03", k: "FULL PANELS", v: pipeline.fullPanels > 0 ? `${pipeline.fullPanels} panels` : "--", done: pipeline.fullPanels > 0 },
-              { n: "04", k: "FULL kWp (act)", v: pipeline.fullKwp > 0 ? `${pipeline.fullKwp.toFixed(1)} kWp` : "--", done: pipeline.fullKwp > 0 },
-              { n: "05", k: "TOD UTIL. FRAC", v: tod.bufferedFraction > 0 ? pct(tod.bufferedFraction) : "--", done: tod.bufferedFraction > 0 },
-              { n: "06", k: "TOD SOLAR CAP", v: pipeline.todSolarCapacityKwp > 0 ? `${pipeline.todSolarCapacityKwp.toFixed(2)} kWp` : "--", done: pipeline.todSolarCapacityKwp > 0 },
-              { n: "07", k: "TOD PANELS", v: pipeline.todPanels > 0 ? `${pipeline.todPanels} panels` : "--", done: pipeline.todPanels > 0 },
-              { n: "08", k: "TOD kWp (act)", v: pipeline.todKwp > 0 ? `${pipeline.todKwp.toFixed(1)} kWp` : "--", done: pipeline.todKwp > 0 },
-              { n: "09", k: "SAVING/YR", v: pipeline.annualSavingAvgRate > 0 ? fmtINR(pipeline.annualSavingAvgRate) : "--", done: pipeline.annualSavingAvgRate > 0 },
-            ].map((s) => (
-              <div key={s.n} className={`ps ${s.done ? "done" : "pend"}`}>
-                <div className="ps-n">STEP {s.n}</div>
-                <div className="ps-k">{s.k}</div>
-                <div className="ps-v">{s.v}</div>
-              </div>
-            ))}
-          </div>
           <div className="vals" style={{ marginTop: 8 }}>
             {checks.map((c, i) => (
               <div key={i} className={`vl ${c.status}`}>
@@ -618,73 +734,7 @@ export default function CommercialBillAnalysis() {
             ))}
           </div>
 
-          {/* §06 Output & Recommendation */}
-          <div className="sec">
-            <span className="sec-lbl">§ 06 — Output &amp; Recommendation</span>
-            <div className="sec-line" />
-          </div>
-          <div className="g4">
-            <div className="res rp">
-              <div className="rl">Full Solar Capacity</div>
-              <div className="rv cc"><AnimatedNumber value={pipeline.fullKwp} decimals={1} /></div>
-              <div className="ru">kWp</div>
-              <div className="rs">{pipeline.fullPanels > 0 ? `${pipeline.fullPanels} panels` : "-- panels"}</div>
-            </div>
-            <div className="res rpurp">
-              <div className="rl">Utilisable TOD</div>
-              <div className="rv cp"><AnimatedNumber value={tod.bufferedFraction * 100} decimals={2} /></div>
-              <div className="ru">%</div>
-              <div className="rs">{todMode === "LT" ? "utilisable +10% buffer" : "utilisable (no buffer)"}</div>
-            </div>
-            <div className="res rg">
-              <div className="rl">TOD-Adjusted Capacity</div>
-              <div className="rv cg"><AnimatedNumber value={pipeline.todKwp} decimals={1} /></div>
-              <div className="ru">kWp</div>
-              <div className="rs">{pipeline.todPanels > 0 ? `${pipeline.todPanels} panels` : "-- panels"}</div>
-            </div>
-            <div className="res ra">
-              <div className="rl">Est. Annual Saving</div>
-              <div className="rv ca">{pipeline.annualSavingAvgRate > 0 ? fmtINR(pipeline.annualSavingAvgRate) : "--"}</div>
-              <div className="ru">₹ / year</div>
-              <div className="rs">{stats.avgUnitCost > 0 ? `at ₹${stats.avgUnitCost.toFixed(2)}/kWh avg rate` : "at avg unit cost"}</div>
-            </div>
-          </div>
-
-          <div className="g3" style={{ marginBottom: 20 }}>
-            <div className="card">
-              <div className="card-h"><span className="card-t">Unit Cost Analysis</span></div>
-              <div className="card-b">
-                <div className="cr-row"><span className="cr-name">Avg Unit Cost</span><span className="cc">{stats.avgUnitCost > 0 ? `₹${stats.avgUnitCost.toFixed(4)}` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">ROUNDUP(Avg Cost, 0.5)</span><span className="ca">{stats.avgUnitCostRoundUp > 0 ? `₹${stats.avgUnitCostRoundUp.toFixed(2)}` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Avg Monthly Units</span><span className="cc">{stats.avgUnits > 0 ? `${fmtNum(stats.avgUnits)} kWh/mo` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Avg Monthly Bill</span><span className="cc">{stats.avgBillAmount > 0 ? `${fmtINR(stats.avgBillAmount)}/mo` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Valid Months</span><span className="cc">{stats.validCount} / 12</span></div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-h"><span className="card-t">Sizing Detail</span></div>
-              <div className="card-b">
-                <div className="cr-row"><span className="cr-name">Annual kWh Target</span><span className="cc">{stats.avgUnits > 0 ? `${fmtNum(stats.avgUnits * 12)} kWh/yr` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Buffered (×{buffer}÷{sunHours})</span><span className="cc">{pipeline.solarCapacityRawKwp > 0 ? `${pipeline.solarCapacityRawKwp.toFixed(2)} kWp` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Full kWp → Panels → Actual kWp</span><span className="cc">{pipeline.fullKwp > 0 ? `${pipeline.fullPanels} → ${pipeline.fullKwp.toFixed(1)} kWp` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">TOD utilisable fraction</span><span className="cp">{tod.bufferedFraction > 0 ? pct(tod.bufferedFraction, 4) : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">TOD kWp → Panels → Actual kWp</span><span className="cg">{pipeline.todKwp > 0 ? `${pipeline.todPanels} → ${pipeline.todKwp.toFixed(1)} kWp` : "--"}</span></div>
-              </div>
-            </div>
-            <div className="card">
-              <div className="card-h"><span className="card-t">Savings &amp; Payback</span></div>
-              <div className="card-b">
-                <div className="cr-row"><span className="cr-name">Solar Gen / Year (TOD kWp)</span><span className="cc">{pipeline.solarGenPerYearKwh > 0 ? `${fmtNum(pipeline.solarGenPerYearKwh)} kWh` : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Annual Saving (avg rate)</span><span className="cg">{pipeline.annualSavingAvgRate > 0 ? fmtINR(pipeline.annualSavingAvgRate) : "--"}</span></div>
-                <div className="cr-row"><span className="cr-name">Annual Saving (ROUNDUP rate)</span><span className="cg">{pipeline.annualSavingRoundUpRate > 0 ? fmtINR(pipeline.annualSavingRoundUpRate) : "--"}</span></div>
-                <div className="cr-row">
-                  <span className="cr-name">System Cost (₹)</span>
-                  <input className="cr-inp" type="number" placeholder="Optional" value={numOrBlank(systemCost)} onChange={(e) => setSystemCost(e.target.value === "" ? "" : Number(e.target.value))} />
-                </div>
-                <div className="cr-row"><span className="cr-name">Simple Payback</span><span className="ca">{pipeline.simplePaybackYears !== null ? `${pipeline.simplePaybackYears.toFixed(1)} yrs` : "--"}</span></div>
-              </div>
-            </div>
-          </div>
+          <CiSizingPanel a={analysis} settings={sizing} onChange={updateSizing} />
 
           {/* Footer controls */}
           <div className="p-4 bg-[var(--hover-bg)] border-t border-[var(--border-subtle)] rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -697,12 +747,13 @@ export default function CommercialBillAnalysis() {
                 whileTap={{ scale: 0.97 }}
                 type="button"
                 onClick={handleExcelDownload}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#4eae0e] to-[#044d90] text-xs font-bold text-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[var(--accent-solid)] text-xs font-bold text-white shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4 text-white" />
                 Download Commercial Excel (.xlsx)
               </motion.button>
-              <motion.button
+              {/* Standalone scanner: employees only — Google export requests Drive scopes. */}
+              {canUseGoogle && <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 type="button"
@@ -711,7 +762,7 @@ export default function CommercialBillAnalysis() {
               >
                 <Cloud className="w-4 h-4 text-white" />
                 Save to Google Sheets
-              </motion.button>
+              </motion.button>}
             </div>
           </div>
         </div>
@@ -721,10 +772,7 @@ export default function CommercialBillAnalysis() {
         open={showGoogleSheetsModal}
         onClose={() => setShowGoogleSheetsModal(false)}
         data={data}
-        panelWatt={panelWatt}
-        sunHours={sunHours}
-        buffer={buffer}
-        systemCost={typeof systemCost === "number" ? systemCost : 0}
+        sizing={sizing}
       />
     </div>
   );

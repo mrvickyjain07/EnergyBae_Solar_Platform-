@@ -89,7 +89,7 @@ export default function GoogleSheetsExportModal({ open, onClose, slot1, solarPan
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 glass-overlay flex items-center justify-center p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -97,7 +97,7 @@ export default function GoogleSheetsExportModal({ open, onClose, slot1, solarPan
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md rounded-2xl bg-[var(--card-bg,#0f1726)] border border-[var(--border-subtle)] p-6 shadow-2xl"
+          className="glass-popover w-full max-w-md rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-[var(--text-primary)] font-bold text-sm">

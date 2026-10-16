@@ -119,3 +119,96 @@ export async function getFolderName(accessToken: string, folderId: string): Prom
   const data = await res.json();
   return data.name || "Selected folder";
 }
+
+// ─── Batch bill import (Commercial Batch Analysis "import from Drive") ─────
+// Reuses the same OAuth token / folder-picker flow as the Sheets export
+// above — no separate API key, no second Drive access pattern.
+
+const IMPORT_SUPPORTED_MIME_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const IMPORT_MAX_FILES = 50;
+const IMPORT_MAX_FILE_SIZE_MB = 20;
+
+export interface DriveImportedFile {
+  base64Data: string;
+  fileName: string;
+}
+
+export interface DriveImportSkipped {
+  fileName: string;
+  reason: string;
+}
+
+interface DriveFileMeta {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: string;
+}
+
+async function listFolderFiles(accessToken: string, folderId: string): Promise<DriveFileMeta[]> {
+  const files: DriveFileMeta[] = [];
+  let pageToken: string | undefined;
+
+  do {
+    const url = new URL(DRIVE_FILES_ENDPOINT);
+    url.searchParams.set("q", `'${folderId}' in parents and trashed = false`);
+    url.searchParams.set("fields", "nextPageToken, files(id, name, mimeType, size)");
+    url.searchParams.set("pageSize", "100");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) throw new Error("Unable to access selected folder.");
+    const json = await res.json();
+    files.push(...(json.files || []));
+    pageToken = json.nextPageToken;
+  } while (pageToken && files.length < IMPORT_MAX_FILES);
+
+  return files.slice(0, IMPORT_MAX_FILES);
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Could not read a downloaded file."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Downloads every supported bill file (PDF/JPEG/PNG/WebP, capped at 20MB and
+// 50 files) from a Drive folder, returning the same {base64Data, fileName}
+// shape the batch Uploader already produces from local drag-and-drop — so
+// the queue logic downstream never needs to know where a file came from.
+export async function importBillsFromFolder(
+  accessToken: string,
+  folderId: string
+): Promise<{ files: DriveImportedFile[]; skipped: DriveImportSkipped[] }> {
+  const meta = await listFolderFiles(accessToken, folderId);
+
+  const files: DriveImportedFile[] = [];
+  const skipped: DriveImportSkipped[] = [];
+
+  for (const file of meta) {
+    if (!IMPORT_SUPPORTED_MIME_TYPES.has(file.mimeType)) {
+      skipped.push({ fileName: file.name, reason: "Unsupported file type" });
+      continue;
+    }
+    const sizeMB = file.size ? Number(file.size) / (1024 * 1024) : 0;
+    if (sizeMB > IMPORT_MAX_FILE_SIZE_MB) {
+      skipped.push({ fileName: file.name, reason: `Too large (${sizeMB.toFixed(1)} MB)` });
+      continue;
+    }
+    try {
+      const res = await fetch(`${DRIVE_FILES_ENDPOINT}/${file.id}?alt=media`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error("download failed");
+      const base64Data = await blobToDataUrl(await res.blob());
+      files.push({ base64Data, fileName: file.name });
+    } catch {
+      skipped.push({ fileName: file.name, reason: "Download failed" });
+    }
+  }
+
+  return { files, skipped };
+}

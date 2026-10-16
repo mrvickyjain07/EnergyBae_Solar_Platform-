@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 type Theme = "dark" | "light";
+const THEME_KEY = "energybae-scanner-theme";
 
 interface ThemeContextType {
   theme: Theme;
@@ -10,17 +11,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  useEffect(() => {
-    // Check localStorage or system preference on mount
-    const savedTheme = localStorage.getItem("energybae-theme") as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) {
-      setTheme("light");
-    }
-  }, []);
+  // Standalone scanner: light is the primary theme. Dark only if the user
+  // picked it here (own key, so the SaaS's saved "dark" doesn't carry over).
+  const [theme, setTheme] = useState<Theme>(() => {
+    try { return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"; } catch { return "light"; }
+  });
 
   useEffect(() => {
     // Apply theme to document element
@@ -29,7 +24,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     root.classList.add(theme);
 
     // Save to localStorage
-    localStorage.setItem("energybae-theme", theme);
+    try { localStorage.setItem(THEME_KEY, theme); } catch {}
   }, [theme]);
 
   const toggleTheme = () => {

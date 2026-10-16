@@ -1,10 +1,21 @@
 import { loadScript } from "./scriptLoader";
 
 const GIS_SCRIPT_URL = "https://accounts.google.com/gsi/client";
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file";
+// drive.file only covers files the app created or that were explicitly
+// opened through the Picker — a folder link just pasted in (never picked)
+// is invisible to it, so files.list silently returns zero results rather
+// than erroring. drive.readonly is what batch import (googleDriveService's
+// importBillsFromFolder) needs to list and download arbitrary pre-existing
+// files in a folder the user merely has read access to.
+const SCOPES =
+  "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly";
 
-const TOKEN_STORAGE_KEY = "energybae_google_access_token";
-const TOKEN_EXPIRY_STORAGE_KEY = "energybae_google_token_expiry";
+// _v2: bumped alongside the SCOPES change above so a token cached under the
+// old (narrower) scope set from an earlier session is never silently
+// reused — an old key here would look "valid" (unexpired) while still
+// lacking drive.readonly, reproducing the exact empty-result bug this fixes.
+const TOKEN_STORAGE_KEY = "energybae_google_access_token_v2";
+const TOKEN_EXPIRY_STORAGE_KEY = "energybae_google_token_expiry_v2";
 
 // Minimal shape of the Google Identity Services API we rely on — the full
 // type definitions ship only via @types packages we don't depend on.
@@ -30,6 +41,27 @@ declare global {
             error_callback?: (err: any) => void;
           }) => TokenClient;
           revoke: (token: string, done?: () => void) => void;
+        };
+        // The Sign In With Google identity flow — a different GIS API
+        // surface than oauth2 above, used by LoginScreen.tsx for app login
+        // (issues a verifiable ID token) rather than Drive/Sheets access
+        // tokens. Declared here too since TS global augmentations must
+        // agree on Window.google's full shape across every file.
+        id: {
+          initialize: (config: { client_id: string; callback: (resp: { credential: string }) => void }) => void;
+          renderButton: (
+            parent: HTMLElement,
+            options: { theme?: string; size?: string; width?: number; shape?: string; text?: string }
+          ) => void;
+          // Triggers the One Tap / Sign In With Google prompt programmatically —
+          // used by LoginScreen.tsx's custom-styled button instead of the
+          // auto-rendered one. The notification lets us detect Google silently
+          // suppressing the prompt (e.g. previously dismissed) instead of
+          // failing with no feedback.
+          prompt: (momentListener?: (notification: {
+            isNotDisplayed: () => boolean;
+            isSkippedMoment: () => boolean;
+          }) => void) => void;
         };
       };
     };

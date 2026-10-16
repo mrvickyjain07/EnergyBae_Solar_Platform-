@@ -1,0 +1,302 @@
+/* Proposal Maker — editable proposal document styles.
+   Print/PDF behaviour is self-contained here (not the #proposal-print-area
+   rule in proposal-maker.css — that rule pins its target with
+   `position: absolute`, which takes it out of normal flow and silently
+   defeats CSS page-break-after fragmentation for a multi-page document like
+   this one). .no-print is still reused; it's a plain `display: none`, no
+   positioning side effects. */
+
+.eb-doc {
+  width: 794px; /* A4 @ 96dpi */
+  max-width: 100%;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.eb-page {
+  padding: 16mm 14mm;
+  border-bottom: 8px solid #e5e7eb;
+}
+.eb-page:last-child {
+  border-bottom: none;
+}
+
+.eb-section-title {
+  color: #1B75BC;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 18px 0 8px;
+}
+.eb-underline {
+  text-decoration: underline;
+  text-transform: none;
+}
+.eb-p {
+  margin: 6px 0;
+  text-align: justify;
+}
+.eb-bold {
+  font-weight: 700;
+}
+.eb-roman-hdr {
+  font-weight: 700;
+  margin: 10px 0 4px;
+}
+
+.eb-plain-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0 12px;
+}
+.eb-plain-table td {
+  border: 1px solid #cfd6e0;
+  padding: 5px 9px;
+  vertical-align: middle;
+}
+.eb-row-label {
+  width: 34%;
+  color: #44546B;
+}
+.eb-row-value {
+  text-align: center;
+}
+.eb-row-value-left {
+  text-align: left;
+}
+.eb-pricing-inline {
+  text-align: left !important;
+}
+.eb-num {
+  display: inline-block;
+  min-width: 2.5em;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Running header/footer — a slim repeating letterhead strip on every page,
+   not a second hero image. Header is a decorative photo (safe to crop);
+   footer carries logos/contact text baked into the graphic, so it's
+   letterboxed instead of cropped so nothing gets cut off. */
+.eb-page-header-img {
+  width: 100%;
+  height: 64px;
+  object-fit: cover;
+  object-position: center 35%;
+  display: block;
+  margin: 0 0 14px;
+  border-radius: 3px;
+}
+.eb-page-footer-img {
+  width: 100%;
+  height: 92px;
+  object-fit: contain;
+  object-position: center bottom;
+  display: block;
+  margin: 14px 0 0;
+}
+
+.eb-cover-img {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  display: block;
+}
+.eb-cover-title {
+  text-align: center;
+  font-size: 30px;
+  font-weight: 700;
+  margin-top: 16px;
+}
+.eb-cover-subtitle {
+  text-align: center;
+  font-size: 16px;
+  color: #44546B;
+  margin-bottom: 20px;
+}
+.eb-cover-table td {
+  border: 1px solid #1B75BC;
+  background: #1B75BC;
+  color: #fff;
+  font-weight: 700;
+  padding: 8px 12px;
+}
+.eb-cover-value {
+  text-align: center;
+}
+
+.eb-gallery-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.eb-gallery-img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.eb-schematic-img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+  margin: 6px 0 14px;
+}
+
+.eb-scope-section {
+  margin-bottom: 10px;
+}
+
+.eb-plain-list {
+  padding-left: 20px;
+  margin: 6px 0;
+}
+.eb-list {
+  padding-left: 22px;
+  margin: 6px 0;
+}
+.eb-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 3px 0;
+}
+.eb-list-item > span.eb-editable {
+  flex: 1;
+}
+.eb-list-del {
+  color: #b91c1c;
+  opacity: 0.55;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.eb-list-del:hover {
+  opacity: 1;
+}
+.eb-list-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #2E7D32;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  padding: 2px 0;
+}
+
+.eb-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px;
+  font-size: 12px;
+}
+.eb-table th,
+.eb-table td {
+  border: 1px solid #cfd6e0;
+  padding: 5px 8px;
+  text-align: left;
+}
+.eb-table th {
+  background: #E8F0F8;
+  font-weight: 700;
+}
+.eb-table-actions-col {
+  width: 28px;
+  text-align: center !important;
+}
+.eb-table tfoot td {
+  border: none;
+  padding: 6px 0 0;
+}
+
+.eb-editable-image {
+  position: relative;
+  cursor: pointer;
+  display: block;
+}
+.eb-editable-image-hint {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.eb-editable-image:hover .eb-editable-image-hint {
+  opacity: 1;
+}
+
+/* Editable affordance — dashed brand outline on hover/focus, never in print. */
+.eb-editable {
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+  border-radius: 2px;
+  transition: outline-color 0.1s;
+}
+.eb-editable:hover,
+.eb-editable:focus {
+  outline-color: #22c55e;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .eb-doc,
+  .eb-doc * {
+    visibility: visible;
+  }
+  /* Both wrappers above .eb-doc use fixed/scroll positioning for the
+     on-screen editor chrome — take them out of the way for print so the
+     page-break rules below can act on .eb-doc's children in normal flow. */
+  .eb-overlay-root,
+  .eb-scroll-wrap {
+    position: static !important;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+  .eb-doc {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+  .eb-page {
+    border-bottom: none;
+    page-break-after: always;
+  }
+  .eb-page:last-child {
+    page-break-after: auto;
+  }
+  .eb-editable {
+    outline: none !important;
+  }
+  .eb-list-del,
+  .eb-list-add,
+  .eb-editable-image-hint,
+  .eb-table-actions-col,
+  .eb-table tfoot {
+    display: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}

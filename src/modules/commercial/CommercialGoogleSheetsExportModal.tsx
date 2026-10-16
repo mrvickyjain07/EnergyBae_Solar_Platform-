@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { SizingSettings } from "./commercialCalculations";
 import { motion, AnimatePresence } from "motion/react";
 import { X, Cloud, FolderOpen, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
 import { getAccessToken, isSignedIn } from "../../services/googleAuthService";
@@ -10,10 +11,8 @@ interface CommercialGoogleSheetsExportModalProps {
   open: boolean;
   onClose: () => void;
   data: CommercialBillData;
-  panelWatt: number;
-  sunHours: number;
-  buffer: number;
-  systemCost: number;
+  /** The on-screen sizing settings (yield, offset, optional margin). */
+  sizing: SizingSettings;
 }
 
 // Separate localStorage key from Residential's, so folder-picker memory never
@@ -24,10 +23,7 @@ export default function CommercialGoogleSheetsExportModal({
   open,
   onClose,
   data,
-  panelWatt,
-  sunHours,
-  buffer,
-  systemCost,
+  sizing,
 }: CommercialGoogleSheetsExportModalProps) {
   const [folderUrl, setFolderUrl] = useState("");
   const [stage, setStage] = useState<CommercialExportStage | "idle">("idle");
@@ -74,7 +70,7 @@ export default function CommercialGoogleSheetsExportModal({
     try {
       const exportResult = await exportCommercialToGoogleSheets({
         data,
-        sizing: { panelWatt, sunHours, buffer, systemCost },
+        sizing,
         folderId,
         onProgress: (s) => setStage(s),
       });
@@ -101,7 +97,7 @@ export default function CommercialGoogleSheetsExportModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 glass-overlay flex items-center justify-center p-4"
         onClick={handleClose}
       >
         <motion.div
@@ -109,7 +105,7 @@ export default function CommercialGoogleSheetsExportModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-md rounded-2xl bg-[var(--card-bg,#0f1726)] border border-[var(--border-subtle)] p-6 shadow-2xl"
+          className="glass-popover w-full max-w-md rounded-2xl p-6"
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 text-[var(--text-primary)] font-bold text-sm">

@@ -1,0 +1,114 @@
+/* Proposal Maker — print styles.
+   Everything else in this module uses the app's own Tailwind + CSS variable
+   design tokens directly (var(--bg-card), var(--accent-green), glass-panel,
+   etc.) rather than a separate scoped palette, per the requirement that this
+   feel like a native part of the app rather than a ported standalone tool. */
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #proposal-print-area,
+  #proposal-print-area * {
+    visibility: visible;
+  }
+  #proposal-print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 12mm !important;
+    max-width: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ── SearchableSelect (components/SearchableSelect.tsx) ──────────────────
+   Type-to-narrow picker used where a native <select> can't cope — the wire
+   catalogue is ~180 near-identical names. */
+.ss-wrap { position: relative; }
+
+.ss-trigger {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer; text-align: left;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  font-size: 13px; color: var(--text-primary); transition: border-color .15s;
+}
+.ss-trigger:hover:not(:disabled) { border-color: var(--border-strong); }
+.ss-trigger:disabled { opacity: .5; cursor: not-allowed; }
+.ss-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-placeholder { color: var(--text-muted); }
+.ss-trigger-right { display: flex; align-items: center; gap: 4px; flex: none; color: var(--text-muted); }
+.ss-clear { display: flex; padding: 2px; border-radius: 4px; cursor: pointer; }
+.ss-clear:hover { color: var(--text-primary); background: var(--hover-bg); }
+
+.ss-pop {
+  position: absolute; z-index: 60; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--bg-card); border: 1px solid var(--border-strong);
+  border-radius: 10px; box-shadow: 0 16px 34px rgba(0, 0, 0, .38); overflow: hidden;
+}
+.ss-search { position: relative; padding: 8px; border-bottom: 1px solid var(--border-subtle); }
+.ss-search-icon { position: absolute; left: 17px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+.ss-search input {
+  width: 100%; padding: 7px 8px 7px 28px; border-radius: 7px; outline: none;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  font-size: 12.5px; color: var(--text-primary);
+}
+.ss-search input:focus { border-color: var(--accent-green); }
+
+.ss-list { max-height: 240px; overflow-y: auto; }
+.ss-option {
+  width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 7px 10px; background: none; border: none; cursor: pointer; text-align: left;
+  font-size: 12.5px; color: var(--text-secondary);
+}
+.ss-option.active { background: var(--hover-bg); color: var(--text-primary); }
+.ss-option.selected { color: var(--accent-green); font-weight: 600; }
+.ss-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-option-hint { flex: none; font-family: var(--font-sans); font-variant-numeric: tabular-nums; font-size: 11px; color: var(--text-muted); }
+.ss-option.active .ss-option-hint { color: var(--text-secondary); }
+
+.ss-none { padding: 14px 10px; text-align: center; font-size: 12px; color: var(--text-muted); }
+.ss-count {
+  padding: 6px 10px; border-top: 1px solid var(--border-subtle);
+  font-family: var(--font-sans); font-variant-numeric: tabular-nums; font-size: 10px; color: var(--text-muted); text-align: right;
+}
+
+/* ── Review & Export effects ─────────────────────────────────────────────
+   .rx-spot: cursor-following spotlight + lit border, after 21st.dev
+   "Spotlight Card" (jahed). --mx/--my are set from onMouseMove.
+   .rx-shimmer: light sweep across a primary button, after 21st.dev
+   "Shimmer Button" (dillionverma). .rx-aurora: slow drifting glow. */
+.rx-spot { position: relative; isolation: isolate; }
+.rx-spot::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none;
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), color-mix(in srgb, var(--accent-solid) 12%, transparent), transparent 60%);
+  opacity: 0; transition: opacity .3s ease;
+}
+.rx-spot::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 0%), var(--accent-green), transparent 70%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: 0; transition: opacity .3s ease;
+}
+.rx-spot:hover::before, .rx-spot:hover::after { opacity: 1; }
+
+.rx-shimmer { position: relative; overflow: hidden; }
+.rx-shimmer:not(:disabled)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+  transform: translateX(-120%); animation: rx-sweep 3.2s ease-in-out infinite;
+}
+@keyframes rx-sweep { 0%, 55% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+
+.rx-aurora { position: absolute; border-radius: 9999px; filter: blur(60px); opacity: .35; pointer-events: none; animation: rx-drift 14s ease-in-out infinite alternate; }
+@keyframes rx-drift { from { transform: translate(0, 0) scale(1); } to { transform: translate(40px, -20px) scale(1.15); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rx-shimmer::after, .rx-aurora { animation: none; }
+}

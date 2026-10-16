@@ -29,6 +29,11 @@ export interface WorksheetModel {
   sheetTitle: string;
   cells: WorksheetCell[];
   colWidths: number[]; // A..F, in "characters" (xlsx wch units)
+  // Last row the model occupies. Block height is NOT fixed — billing history is
+  // 0-12 rows and the validation list is dynamic — so a caller stacking several
+  // models on one sheet cannot assume a stride and would otherwise have to
+  // re-parse max row out of the cell refs.
+  endRow?: number;
 }
 
 export const WORKSHEET_DIVISOR = 106.060606;

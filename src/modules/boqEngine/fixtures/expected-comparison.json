@@ -1,0 +1,3624 @@
+{
+ "aaryan--1kw-solar.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 1
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 16,
+   "calcQty": 16
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 9,
+   "calcQty": 9
+  },
+  {
+   "key": "15",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 16,
+   "calcQty": 16
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 36
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 9,
+   "calcQty": 18
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 18,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 7.2,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 4,
+   "calcQty": null
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 1
+  },
+  {
+   "key": "25",
+   "result": "MATCH",
+   "workbookQty": 3,
+   "calcQty": 3
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 6,
+   "calcQty": 4
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "11",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 5
+  },
+  {
+   "key": "33",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 18
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "aaryan--copy-of-solar-boq.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 1
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "DIFFERENT",
+   "workbookQty": 14,
+   "calcQty": 23
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 16,
+   "calcQty": 16
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 9,
+   "calcQty": 9
+  },
+  {
+   "key": "15",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 48,
+   "calcQty": 48
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 19,
+   "calcQty": 48
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 24
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 54,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 14.4,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 12,
+   "calcQty": null
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 3
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 9
+  },
+  {
+   "key": "26",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "11",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 5
+  },
+  {
+   "key": "33",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 18
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "aaryan--solar-boq.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 9,
+   "calcQty": 9
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "DIFFERENT",
+   "workbookQty": 15,
+   "calcQty": 25
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "6",
+   "result": "DIFFERENT",
+   "workbookQty": 2,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 16,
+   "calcQty": 16
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 9,
+   "calcQty": 9
+  },
+  {
+   "key": "15",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 18,
+   "calcQty": 18
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 4,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 48,
+   "calcQty": 48
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 20,
+   "calcQty": 51
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 26
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 48,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 32.4,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 12,
+   "calcQty": null
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 25,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 5
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 14
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 18
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "11",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 5
+  },
+  {
+   "key": "33",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 18
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "ananda--10.8kw-non-raised-strucutre-sol.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 18,
+   "calcQty": 18
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 82,
+   "calcQty": 82
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 48,
+   "calcQty": 48
+  },
+  {
+   "key": "11",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 61,
+   "calcQty": 61
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 54,
+   "calcQty": 54
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 98,
+   "calcQty": 63
+  },
+  {
+   "key": "16",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 36,
+   "calcQty": 36
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 80,
+   "calcQty": 80
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 234,
+   "calcQty": 198
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 117,
+   "calcQty": 99
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 48,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 69.3,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 20,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 10.5
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 78,
+   "calcQty": 27
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 36
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "ananda--34.2kw-non-raised-strucutre-sol.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 57,
+   "calcQty": 57
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 222,
+   "calcQty": 222
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 24,
+   "calcQty": 24
+  },
+  {
+   "key": "6",
+   "result": "DIFFERENT",
+   "workbookQty": 2,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "DIFFERENT",
+   "workbookQty": 2,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 212,
+   "calcQty": 212
+  },
+  {
+   "key": "11",
+   "result": "DIFFERENT",
+   "workbookQty": 20,
+   "calcQty": 10
+  },
+  {
+   "key": "12",
+   "result": "DIFFERENT",
+   "workbookQty": 2,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 208,
+   "calcQty": 208
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 194,
+   "calcQty": 194
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 104,
+   "calcQty": 156
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 7
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 114,
+   "calcQty": 114
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 13,
+   "calcQty": 8
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "DIFFERENT",
+   "workbookQty": 180,
+   "calcQty": 176
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 522,
+   "calcQty": 624
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 261,
+   "calcQty": 312
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 150,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 217.2,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 45,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 24,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 21,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 34
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 78,
+   "calcQty": 86
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 114
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "Civil block",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 22,
+   "calcQty": null
+  },
+  {
+   "key": "24",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "ananda--4.2kw-non-raised-strucutre-sola.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 7,
+   "calcQty": 7
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 64,
+   "calcQty": 64
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 48,
+   "calcQty": 48
+  },
+  {
+   "key": "11",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 61,
+   "calcQty": 61
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 54,
+   "calcQty": 54
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 98,
+   "calcQty": 63
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 14,
+   "calcQty": 14
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 4,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 48,
+   "calcQty": 48
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 216,
+   "calcQty": 180
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 108,
+   "calcQty": 90
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 42,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 29.7,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 12,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 6,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 4.2
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 78,
+   "calcQty": 11
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 14
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "ananda--40.2kw-non-raised-strucutre-sol.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 75,
+   "calcQty": 75
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 3,
+   "calcQty": 3
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 3,
+   "calcQty": 3
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 300,
+   "calcQty": 300
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 24,
+   "calcQty": 24
+  },
+  {
+   "key": "6",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "DIFFERENT",
+   "workbookQty": 525,
+   "calcQty": 175
+  },
+  {
+   "key": "11",
+   "result": "DIFFERENT",
+   "workbookQty": 30,
+   "calcQty": 15
+  },
+  {
+   "key": "12",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 199,
+   "calcQty": 199
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 178,
+   "calcQty": 178
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 153,
+   "calcQty": 135
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 9
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 150,
+   "calcQty": 150
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 13,
+   "calcQty": 10
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "DIFFERENT",
+   "workbookQty": 180,
+   "calcQty": 176
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 18,
+   "calcQty": 18
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 633,
+   "calcQty": 678
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 317,
+   "calcQty": 339
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 150,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 282,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 45,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 24,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 21,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 40
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 78,
+   "calcQty": 113
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 150
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "Civil block",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 22,
+   "calcQty": null
+  },
+  {
+   "key": "24",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "ashwini--3-kw-raised-structure-solar-boq.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 18,
+   "calcQty": 18
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 21,
+   "calcQty": 21
+  },
+  {
+   "key": "11",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 24,
+   "calcQty": 24
+  },
+  {
+   "key": "14",
+   "result": "DIFFERENT",
+   "workbookQty": 22,
+   "calcQty": 17
+  },
+  {
+   "key": "15",
+   "result": "MATCH",
+   "workbookQty": 26,
+   "calcQty": 26
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 4,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 32,
+   "calcQty": 32
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 66,
+   "calcQty": 60
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 33,
+   "calcQty": 30
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 24,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 21.6,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 8,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 3.6,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 3
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 9,
+   "calcQty": 8
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 10
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "ashwini--4.8-kw-raised-structure-solar-b.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 20,
+   "calcQty": 20
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 21,
+   "calcQty": 21
+  },
+  {
+   "key": "11",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 24,
+   "calcQty": 24
+  },
+  {
+   "key": "14",
+   "result": "DIFFERENT",
+   "workbookQty": 22,
+   "calcQty": 17
+  },
+  {
+   "key": "15",
+   "result": "MATCH",
+   "workbookQty": 26,
+   "calcQty": 26
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 16,
+   "calcQty": 16
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 4,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 48,
+   "calcQty": 48
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 69,
+   "calcQty": 63
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 35,
+   "calcQty": 32
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 36,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 32.4,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 12,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 4.5,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 4.8
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 12
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 16
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "celebration--25-kw-non-raised-shed-hybrid.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 42,
+   "calcQty": 42
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "DC MCB 160A",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 1,
+   "calcQty": null
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 150,
+   "calcQty": 150
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 76,
+   "calcQty": 76
+  },
+  {
+   "key": "Bypass switch",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 1,
+   "calcQty": null
+  },
+  {
+   "key": "11",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 84,
+   "calcQty": 84
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 77,
+   "calcQty": 77
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 76,
+   "calcQty": 86
+  },
+  {
+   "key": "16",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 84,
+   "calcQty": 84
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 96,
+   "calcQty": 96
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 303,
+   "calcQty": 312
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 152,
+   "calcQty": 156
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 3,
+   "calcQty": 3
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 48,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 30,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 24,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 9.6,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 15.6,
+   "calcQty": 25
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 84,
+   "calcQty": 63
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 84
+  },
+  {
+   "key": "36",
+   "result": "DIFFERENT",
+   "workbookQty": 150,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 0
+  },
+  {
+   "key": "3",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "38",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "celebration--25-kw-non-raised-structure-sola.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 42,
+   "calcQty": 42
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 130,
+   "calcQty": 130
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 76,
+   "calcQty": 76
+  },
+  {
+   "key": "11",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 84,
+   "calcQty": 84
+  },
+  {
+   "key": "14",
+   "result": "MATCH",
+   "workbookQty": 77,
+   "calcQty": 77
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 76,
+   "calcQty": 86
+  },
+  {
+   "key": "16",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 84,
+   "calcQty": 84
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 160,
+   "calcQty": 160
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 285,
+   "calcQty": 291
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 143,
+   "calcQty": 146
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 3,
+   "calcQty": 3
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 102,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 30,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 40,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 0,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 9.6,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 9.6,
+   "calcQty": 25
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 90,
+   "calcQty": 63
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 72,
+   "calcQty": 84
+  },
+  {
+   "key": "36",
+   "result": "DIFFERENT",
+   "workbookQty": 84,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "DIFFERENT",
+   "workbookQty": 20,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "38",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "foundit--6-kw-shed-structure-dcr-solar-b.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "DC MCB 160A",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 1,
+   "calcQty": null
+  },
+  {
+   "key": "4",
+   "result": "DIFFERENT",
+   "workbookQty": 2,
+   "calcQty": 1
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 22,
+   "calcQty": 22
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 17,
+   "calcQty": 17
+  },
+  {
+   "key": "Bypass switch",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 1,
+   "calcQty": null
+  },
+  {
+   "key": "11",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 36,
+   "calcQty": 36
+  },
+  {
+   "key": "14",
+   "result": "DIFFERENT",
+   "workbookQty": 24,
+   "calcQty": 29
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 32,
+   "calcQty": 37
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 3,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 4,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 78,
+   "calcQty": 87
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 39,
+   "calcQty": 44
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 21.6,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "MATCH",
+   "workbookQty": 3,
+   "calcQty": 3
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 33,
+   "calcQty": 8
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 10
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "DIFFERENT",
+   "workbookQty": 6,
+   "calcQty": 0
+  },
+  {
+   "key": "3",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "foundit--6-kw-shed-structure-ndcr-solar.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "DC MCB 160A",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 1,
+   "calcQty": null
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 25,
+   "calcQty": 25
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 4,
+   "calcQty": 4
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 22,
+   "calcQty": 22
+  },
+  {
+   "key": "Bypass switch",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 1,
+   "calcQty": null
+  },
+  {
+   "key": "11",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 36,
+   "calcQty": 36
+  },
+  {
+   "key": "14",
+   "result": "DIFFERENT",
+   "workbookQty": 24,
+   "calcQty": 29
+  },
+  {
+   "key": "15",
+   "result": "DIFFERENT",
+   "workbookQty": 32,
+   "calcQty": 37
+  },
+  {
+   "key": "16",
+   "result": "MATCH",
+   "workbookQty": 5,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 20,
+   "calcQty": 20
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 81,
+   "calcQty": 90
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 41,
+   "calcQty": 45
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 39.6,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 12,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 33,
+   "calcQty": 15
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 18,
+   "calcQty": 20
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "24",
+   "result": "DIFFERENT",
+   "workbookQty": 6,
+   "calcQty": 0
+  },
+  {
+   "key": "3",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ],
+ "fredrick--3.6-kw-raised-structure-solar-b.json": [
+  {
+   "key": "1",
+   "result": "MATCH",
+   "workbookQty": 9,
+   "calcQty": 9
+  },
+  {
+   "key": "2",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "3",
+   "result": "DIFFERENT",
+   "workbookQty": 1,
+   "calcQty": 0
+  },
+  {
+   "key": "4",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "5",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "8",
+   "result": "MATCH",
+   "workbookQty": 78,
+   "calcQty": 78
+  },
+  {
+   "key": "9",
+   "result": "MATCH",
+   "workbookQty": 8,
+   "calcQty": 8
+  },
+  {
+   "key": "6",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "7",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "10",
+   "result": "MATCH",
+   "workbookQty": 21,
+   "calcQty": 21
+  },
+  {
+   "key": "11",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 5
+  },
+  {
+   "key": "AC cable busbar→meter",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "12",
+   "result": "MATCH",
+   "workbookQty": 1,
+   "calcQty": 1
+  },
+  {
+   "key": "13",
+   "result": "MATCH",
+   "workbookQty": 49,
+   "calcQty": 49
+  },
+  {
+   "key": "14",
+   "result": "DIFFERENT",
+   "workbookQty": 32,
+   "calcQty": 42
+  },
+  {
+   "key": "15",
+   "result": "MATCH",
+   "workbookQty": 51,
+   "calcQty": 51
+  },
+  {
+   "key": "16",
+   "result": "DIFFERENT",
+   "workbookQty": 4,
+   "calcQty": 5
+  },
+  {
+   "key": "17",
+   "result": "MATCH",
+   "workbookQty": 18,
+   "calcQty": 18
+  },
+  {
+   "key": "18",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "19",
+   "result": "DIFFERENT",
+   "workbookQty": 5,
+   "calcQty": 6
+  },
+  {
+   "key": "20",
+   "result": "MATCH",
+   "workbookQty": 12,
+   "calcQty": 12
+  },
+  {
+   "key": "21",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "22",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "23",
+   "result": "MATCH",
+   "workbookQty": 6,
+   "calcQty": 6
+  },
+  {
+   "key": "M8×100 purlin bolt",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "31",
+   "result": "DIFFERENT",
+   "workbookQty": 10,
+   "calcQty": 6
+  },
+  {
+   "key": "32",
+   "result": "DIFFERENT",
+   "workbookQty": 2,
+   "calcQty": 1
+  },
+  {
+   "key": "27",
+   "result": "DIFFERENT",
+   "workbookQty": 162,
+   "calcQty": 171
+  },
+  {
+   "key": "28",
+   "result": "DIFFERENT",
+   "workbookQty": 81,
+   "calcQty": 86
+  },
+  {
+   "key": "29",
+   "result": "MATCH",
+   "workbookQty": 10,
+   "calcQty": 10
+  },
+  {
+   "key": "30",
+   "result": "MATCH",
+   "workbookQty": 2,
+   "calcQty": 2
+  },
+  {
+   "key": "GI structure 80×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "Structure 75×75",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 32.4,
+   "calcQty": null
+  },
+  {
+   "key": "Purlin 40×40",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 36,
+   "calcQty": null
+  },
+  {
+   "key": "Base plate",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "33",
+   "result": "DIFFERENT",
+   "workbookQty": 24,
+   "calcQty": 18
+  },
+  {
+   "key": "34",
+   "result": "DIFFERENT",
+   "workbookQty": 29,
+   "calcQty": 5
+  },
+  {
+   "key": "35",
+   "result": "DIFFERENT",
+   "workbookQty": 4.2,
+   "calcQty": 5.4
+  },
+  {
+   "key": "25",
+   "result": "DIFFERENT",
+   "workbookQty": 60,
+   "calcQty": 14
+  },
+  {
+   "key": "26",
+   "result": "DIFFERENT",
+   "workbookQty": 30,
+   "calcQty": 18
+  },
+  {
+   "key": "38",
+   "result": "MATCH",
+   "workbookQty": 0,
+   "calcQty": 0
+  },
+  {
+   "key": "Civil block",
+   "result": "MISSING IN calcBOQ",
+   "workbookQty": 0,
+   "calcQty": null
+  },
+  {
+   "key": "24",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "36",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  },
+  {
+   "key": "37",
+   "result": "NOT IN WORKBOOK",
+   "workbookQty": null,
+   "calcQty": 0
+  }
+ ]
+}

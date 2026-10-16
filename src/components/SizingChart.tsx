@@ -33,9 +33,9 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
         </h3>
         
         {/* Legend */}
-        <div className="flex items-center space-x-4 text-[10px] font-mono">
+        <div className="flex items-center space-x-4 text-xs">
           <div className="flex items-center">
-            <span className="w-3 h-3 rounded bg-cyan-500/80 mr-1.5 inline-block"></span>
+            <span className="w-3 h-3 rounded bg-[var(--accent-green)] mr-1.5 inline-block"></span>
             <span className="text-[var(--text-secondary)]">Grid Units Consumed (kWh)</span>
           </div>
           <div className="flex items-center">
@@ -52,8 +52,6 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
         className="glass-panel rounded-2xl p-5 border-[var(--border-subtle)] relative overflow-hidden transition-colors duration-300"
       >
         {/* Ambient background glow inside chart */}
-        <div className="absolute -left-10 -bottom-10 w-24 h-24 rounded-full bg-cyan-500/10 blur-xl"></div>
-        <div className="absolute -right-10 -top-10 w-24 h-24 rounded-full bg-blue-500/10 blur-xl"></div>
 
         {/* SVG Core Chart */}
         <div className="relative h-56 w-full mt-2">
@@ -62,7 +60,7 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
             {[0, 0.25, 0.5, 0.75, 1].map((p, idx) => {
               const val = Math.round(maxConsumption * (1 - p));
               return (
-                <div key={idx} className="w-full flex items-center text-[10px] font-mono text-[var(--text-muted)] border-t border-[var(--border-strong)] pt-0.5">
+                <div key={idx} className="w-full flex items-center text-xs text-[var(--text-muted)] border-t border-[var(--border-strong)] pt-0.5">
                   <span className="w-10 pr-2 text-right shrink-0">{val}</span>
                   <div className="flex-1 border-b border-dashed border-[var(--border-subtle)]/40"></div>
                 </div>
@@ -94,12 +92,12 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
                     whileHover={{ scaleX: 1.3 }}
                     className={`w-full max-w-[14px] rounded-t-sm relative ${
                       hoveredIdx === idx
-                        ? "bg-gradient-to-t from-cyan-600 to-cyan-400 shadow-[0_0_12px_rgba(6,182,212,0.4)]"
-                        : "bg-cyan-500/30 border-t border-cyan-400/40"
+                        ? "bg-[var(--accent-green)]"
+                        : "bg-[var(--accent-green)]/25"
                     }`}
                   >
                     {/* Tiny accent tip dot */}
-                    <div className="absolute top-0 inset-x-0 h-0.5 bg-cyan-300 rounded-t-sm" />
+                    <div className="absolute top-0 inset-x-0 h-0.5 bg-[var(--accent-green-light)] rounded-t-sm" />
                   </motion.div>
 
                   {/* Proposed Solar Yield Offset line / panel segment */}
@@ -108,9 +106,9 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
                     initial={{ height: 0 }}
                     animate={{ height: `${Math.min(solarHeightPct, 100)}%` }}
                     transition={{ duration: 0.6, delay: idx * 0.04 + 0.1, ease: [0.22, 1, 0.36, 1] }}
-                    className={`w-1 shadow-[0_0_8px_rgba(37,99,235,0.2)] ml-1 rounded-t-sm relative ${
+                    className={`w-1 ml-1 rounded-t-sm relative ${
                       hoveredIdx === idx
-                        ? "bg-blue-400 shadow-[0_0_10px_rgba(37,99,235,0.5)]"
+                        ? "bg-[var(--text-muted)]"
                         : "bg-blue-500/20 border-t border-blue-400/30"
                     }`}
                   >
@@ -119,19 +117,19 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
 
                   {/* Interactive Dynamic Hover Tooltip inside the chart column */}
                   {hoveredIdx === idx && (
-                    <div className="absolute bottom-[105%] left-1/2 -translate-x-1/2 bg-[var(--bg-primary)]/95 border border-cyan-500/40 px-3 py-2 rounded-xl shadow-2xl z-20 min-w-[140px] pointer-events-none text-left backdrop-blur-lg">
-                      <p className="text-[10px] text-[var(--text-muted)] font-semibold font-display uppercase tracking-wider mb-1">{item.month}</p>
+                    <div className="absolute bottom-[105%] left-1/2 -translate-x-1/2 glass-popover px-3 py-2 rounded-xl z-20 min-w-[140px] pointer-events-none text-left">
+                      <p className="text-xs text-[var(--text-muted)] font-semibold font-display mb-1">{item.month}</p>
 
                       <div className="space-y-1 text-xs">
                         <div className="flex justify-between gap-4">
                           <span className="text-[var(--text-secondary)]">Grid Load:</span>
-                          <span className="text-cyan-500 font-mono font-medium">{item.consumption} Units</span>
+                          <span className="text-[var(--text-primary)] font-medium">{item.consumption} Units</span>
                         </div>
                         <div className="flex justify-between gap-4">
                           <span className="text-[var(--text-secondary)]">Solar Offset:</span>
-                          <span className="text-[var(--accent-green)] font-mono font-medium">+{estimatedMonthlySolarYield} Units</span>
+                          <span className="text-[var(--accent-green)] font-medium">+{estimatedMonthlySolarYield} Units</span>
                         </div>
-                        <div className="border-t border-[var(--border-subtle)] my-1 pt-1 flex justify-between gap-4 text-[10px] font-mono">
+                        <div className="border-t border-[var(--border-subtle)] my-1 pt-1 flex justify-between gap-4 text-xs">
                           <span className="text-[var(--text-muted)]">Proposed Net:</span>
                           <span className={isProposedOffsetSufficient ? "text-[var(--accent-green)] font-medium" : "text-amber-400"}>
                             {isProposedOffsetSufficient ? "100% Free" : `-${Math.max(0, item.consumption - estimatedMonthlySolarYield)} Units`}
@@ -148,7 +146,7 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
           {/* Month labels (X axis) */}
           <div className="absolute bottom-0 left-10 right-0 h-5 flex justify-between items-center px-2">
             {history.map((item, idx) => (
-              <span key={idx} className="flex-1 text-center text-[9px] font-mono text-[var(--text-muted)] tracking-tighter truncate">
+              <span key={idx} className="flex-1 text-center text-xs text-[var(--text-muted)] tracking-tighter truncate">
                 {item.month.split(" ")[0]}
               </span>
             ))}
@@ -166,7 +164,7 @@ export default function SizingChart({ history, solarSizeKw }: SizingChartProps) 
               })()}%
             </span>
           </span>
-          <span className="text-[10px] text-[var(--text-muted)] font-mono">Peak months: Mar - May</span>
+          <span className="text-xs text-[var(--text-muted)]">Peak months: Mar - May</span>
         </div>
       </motion.div>
     </div>

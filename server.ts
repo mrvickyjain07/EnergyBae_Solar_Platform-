@@ -1,22 +1,52 @@
 import express from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import path from "path";
 import fs from "fs";
-import { GoogleGenAI, Type } from "@google/genai";
+import { Type } from "@google/genai";
 import * as xlsx from "xlsx";
 import dotenv from "dotenv";
 import { buildWorksheetModel, WORKSHEET_DIVISOR } from "./src/worksheetModel";
 import { calculateUnitCost, DEFAULT_MSEDCL_LT1_SLABS, TariffSlab } from "./src/services/tariffCalculator";
 import { registerCommercialRoutes } from "./src/modules/commercial/commercialApi";
+import { registerCatalogueRoutes } from "./src/modules/proposal/catalogueApi";
+import { registerWirePriceRoutes } from "./src/modules/proposal/wirePricesApi";
+import { registerInverterPriceRoutes } from "./src/modules/proposal/inverterPricesApi";
+import { registerProposalRoutes } from "./src/modules/proposal/proposalsApi";
+import { registerBillEnhanceRoutes } from "./src/services/billEnhancementApi";
+import { registerOrganizationRoutes } from "./src/services/organizationApi";
+import { registerAuthRoutes } from "./src/modules/auth/authApi";
+import { registerUserRoutes } from "./src/modules/auth/usersApi";
+import { registerRoleRoutes } from "./src/modules/auth/rolesApi";
+import { registerCustomerRoutes } from "./src/modules/projects/customersApi";
+import { registerProjectRoutes } from "./src/modules/projects/projectsApi";
+import { registerBoqTemplateRoutes } from "./src/modules/boqTemplates/boqTemplatesApi";
+import { isAcceptedBillMime } from "./src/uploadLimits";
+import { requireAuth, requireMember, requirePermission } from "./src/services/authMiddleware";
+import {
+  GEMINI_MODEL,
+  validateGeminiApiKeyFormat,
+  getGeminiClient,
+  isTransientError,
+  withRetry,
+  ExtractionUnavailableError,
+  generateWithGeminiFallback,
+  detectPdfPageCount,
+} from "./src/services/geminiExtraction";
 
 // Load .env.local (development) and fall back to .env
 dotenv.config({ path: ".env.local" });
 dotenv.config(); // also load .env if present
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// On Vercel every request arrives through its proxy; without this, req.ip is
+// the proxy's address and the per-IP rate limiters below would put ALL
+// public visitors in one shared bucket. One hop = Vercel's edge.
+if (process.env.VERCEL) app.set("trust proxy", 1);
+const PORT = Number(process.env.PORT) || 3000;
 
 {
-  const startupKeyCheck = validateConfiguredGeminiApiKeys();
+  const startupKeyCheck = validateGeminiApiKeyFormat(process.env.GEMINI_API_KEY);
   if (!startupKeyCheck.valid) {
     console.warn(`[EnergyBae] ⚠ GEMINI_API_KEY problem at startup: ${startupKeyCheck.reason}`);
   } else {
@@ -24,231 +54,60 @@ const PORT = process.env.PORT || 3000;
   }
 }
 
+// Security headers. Full CSP only in production: Vite's dev client (HMR,
+// React refresh) needs eval/inline-script leeway a CSP would fight with, and
+// dev never faces real traffic — a missing directive falls back to
+// default-src rather than being un-set, so the only reliable way to exempt
+// dev is to skip contentSecurityPolicy entirely, not relax one directive.
+// crossOriginOpenerPolicy is relaxed to same-origin-allow-popups because
+// Google Identity Services' sign-in flow talks to its popup/iframe via
+// postMessage — helmet's default same-origin COOP silently breaks that
+// handshake.
+const isProd = process.env.NODE_ENV === "production";
+app.use(
+  helmet({
+    contentSecurityPolicy: isProd
+      ? {
+          useDefaults: true,
+          directives: {
+            "default-src": ["'self'"],
+            "script-src": ["'self'", "https://cdnjs.cloudflare.com"],
+            "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+            "img-src": ["'self'", "data:", "blob:"],
+            "connect-src": ["'self'"],
+            "object-src": ["'none'"],
+            "base-uri": ["'self'"],
+            "frame-ancestors": ["'self'"],
+          },
+        }
+      : false,
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  })
+);
+
+// Rate limiting — brute-force protection on login, cost-abuse protection on
+// the two Gemini-backed extraction routes (each call is a billed API request).
+// Per-IP; shared limiter instance across both extraction routes means they
+// draw from one combined budget, matching the shared Gemini quota behind them.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many login attempts. Try again in a few minutes." },
+});
+const extractLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many extraction requests. Try again in a few minutes." },
+});
+
 // Enable large body limits for base64 images uploads
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// ─── API key format validation ─────────────────────────────────────────────
-// Catches the most common misconfiguration early: a missing key, or a value
-// that isn't shaped like a real Gemini Developer API key (e.g. a leftover
-// AI-Studio-sandbox token, which looks nothing like the real "AIzaSy..."
-// format issued at https://aistudio.google.com/apikey).
-export function validateGeminiApiKeyFormat(apiKey: string | undefined): { valid: boolean; reason?: string } {
-  if (!apiKey || !apiKey.trim()) {
-    return { valid: false, reason: "GEMINI_API_KEY is missing or empty." };
-  }
-  if (apiKey !== apiKey.trim()) {
-    return { valid: false, reason: "GEMINI_API_KEY has leading/trailing whitespace." };
-  }
-  if (apiKey.length < 20) {
-    return {
-      valid: false,
-      reason: "GEMINI_API_KEY looks too short to be a real key. Generate one at https://aistudio.google.com/apikey.",
-    };
-  }
-  return { valid: true };
-}
-
-// ─── Gemini client pool with multi-key fallback ──────────────────────────────
-// Reads GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, ... (in that order).
-// When the active key's daily quota is exhausted (or it hits a rate limit), the
-// next configured key is tried automatically instead of failing the request.
-function getGeminiApiKeys(): string[] {
-  const keys: string[] = [];
-  const primary = process.env.GEMINI_API_KEY;
-  if (primary && primary.trim()) keys.push(primary.trim());
-  for (let i = 2; i <= 5; i++) {
-    const extra = process.env[`GEMINI_API_KEY_${i}`];
-    if (extra && extra.trim()) keys.push(extra.trim());
-  }
-  return keys;
-}
-
-const geminiClientsByKey = new Map<string, GoogleGenAI>();
-function getGeminiClientForKey(apiKey: string): GoogleGenAI {
-  let client = geminiClientsByKey.get(apiKey);
-  if (!client) {
-    client = new GoogleGenAI({ apiKey, httpOptions: { headers: { "User-Agent": "aistudio-build" } } });
-    geminiClientsByKey.set(apiKey, client);
-  }
-  return client;
-}
-
-export function getGeminiClient(): GoogleGenAI {
-  const keys = getGeminiApiKeys();
-  if (keys.length === 0) {
-    console.warn("WARNING: GEMINI_API_KEY environment variable is not set. Real OCR/AI extraction will fail.");
-    return getGeminiClientForKey("MOCK_KEY");
-  }
-  return getGeminiClientForKey(keys[0]);
-}
-
-// True if at least one configured Gemini API key (GEMINI_API_KEY, GEMINI_API_KEY_2, ...)
-// looks well-formed.
-export function validateConfiguredGeminiApiKeys(): { valid: boolean; reason?: string } {
-  const keys = getGeminiApiKeys();
-  if (keys.length === 0) {
-    return { valid: false, reason: "GEMINI_API_KEY is missing or empty." };
-  }
-  if (keys.some((k) => validateGeminiApiKeyFormat(k).valid)) {
-    return { valid: true };
-  }
-  return validateGeminiApiKeyFormat(keys[0]);
-}
-
-// ─── Gemini error classification ─────────────────────────────────────────────
-// A 429 can mean two very different things: a per-minute rate limit / momentary
-// 503 overload (worth retrying, recovers in seconds) or a per-DAY quota (free
-// tier: 20 requests/day for gemini-2.5-flash — retrying is pointless, it won't
-// recover until the quota resets, likely hours away). This distinguishes them.
-export type GeminiErrorClass = { kind: "daily-quota" | "transient" | "other"; retryDelaySeconds?: number };
-
-export function classifyGeminiError(err: any): GeminiErrorClass {
-  // Node's `fetch` wraps the real network failure in `.cause` (e.g. ECONNRESET,
-  // ETIMEDOUT, ENOTFOUND, EAI_AGAIN) and only exposes "fetch failed" on the
-  // top-level error message — so the cause chain must be inspected too, or
-  // transient network blips get misclassified as permanent failures.
-  const messages: string[] = [];
-  let cur = err;
-  let depth = 0;
-  while (cur && depth < 5) {
-    if (cur.message) messages.push(String(cur.message));
-    if (cur.code) messages.push(String(cur.code));
-    cur = cur.cause;
-    depth++;
-  }
-  const lower = messages.join(" ").toLowerCase();
-  const status: number | undefined = err?.status ?? err?.code;
-
-  let quotaId = "";
-  let retryDelaySeconds: number | undefined;
-  for (const m of messages) {
-    try {
-      const details = JSON.parse(m)?.error?.details;
-      if (!Array.isArray(details)) continue;
-      const quotaFailure = details.find((d: any) => d["@type"]?.includes("QuotaFailure"));
-      if (quotaFailure?.violations?.[0]?.quotaId) quotaId = quotaFailure.violations[0].quotaId;
-      const retryInfo = details.find((d: any) => d["@type"]?.includes("RetryInfo"));
-      const secs = retryInfo?.retryDelay ? parseFloat(String(retryInfo.retryDelay)) : undefined;
-      if (Number.isFinite(secs)) retryDelaySeconds = secs;
-    } catch {
-      // not a structured Google error body — ignore
-    }
-  }
-
-  const isRateLimited = status === 429 || lower.includes("429") || lower.includes("resource_exhausted");
-  if (isRateLimited && (quotaId.toLowerCase().includes("perday") || lower.includes("per day"))) {
-    return { kind: "daily-quota", retryDelaySeconds };
-  }
-
-  // HTTP 503, 429 (rate-limit) or explicit UNAVAILABLE status from Gemini SDK
-  const isTransient =
-    status === 503 || status === 429 ||
-    lower.includes("503") || lower.includes("unavailable") || lower.includes("overloaded") ||
-    lower.includes("429") || lower.includes("rate") || lower.includes("quota") ||
-    lower.includes("econnreset") || lower.includes("etimedout") || lower.includes("enotfound") ||
-    lower.includes("eai_again") || lower.includes("socket") || lower.includes("fetch failed") || lower.includes("network");
-
-  return isTransient ? { kind: "transient", retryDelaySeconds } : { kind: "other" };
-}
-
-// Back-compat boolean view — true for anything worth surfacing as a demand/rate issue.
-export function isTransientError(err: any): boolean {
-  return classifyGeminiError(err).kind !== "other";
-}
-
-// Exponential-backoff retry wrapper.
-// maxAttempts: total attempts (first call + retries).
-// baseDelayMs: initial wait before first retry (doubles each retry).
-export async function withRetry<T>(
-  label: string,
-  fn: () => Promise<T>,
-  maxAttempts = 4,
-  baseDelayMs = 2000
-): Promise<T> {
-  let lastError: any;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      if (attempt > 1) {
-        console.log(`[EnergyBae][${label}] Retry attempt ${attempt}/${maxAttempts}...`);
-      }
-      const result = await fn();
-      if (attempt > 1) {
-        console.log(`[EnergyBae][${label}] Succeeded on attempt ${attempt}.`);
-      }
-      return result;
-    } catch (err: any) {
-      lastError = err;
-      const errMsg: string = err?.message || String(err);
-      console.warn(`[EnergyBae][${label}] Attempt ${attempt} failed: ${errMsg}`);
-
-      const classification = classifyGeminiError(err);
-      if (classification.kind !== "transient") {
-        console.error(
-          `[EnergyBae][${label}] ${classification.kind === "daily-quota" ? "Daily quota exhausted" : "Non-transient error"} — will not retry.`
-        );
-        throw err;
-      }
-      if (attempt < maxAttempts) {
-        const delay = baseDelayMs * Math.pow(2, attempt - 1); // 2s, 4s, 8s
-        console.log(`[EnergyBae][${label}] Transient error. Waiting ${delay}ms before retry...`);
-        await new Promise((res) => setTimeout(res, delay));
-      }
-    }
-  }
-  throw lastError;
-}
-
-// ─── Multi-key Gemini call with automatic fallback ───────────────────────────
-// Runs `fn` against each configured Gemini API key in order, retrying transient
-// errors within a key via withRetry. Only moves to the next key when the current
-// key's error is quota/rate-limit related.
-export async function withGeminiKeyFallback<T>(
-  label: string,
-  fn: (client: GoogleGenAI) => Promise<T>,
-  maxAttemptsPerKey = 2,
-  baseDelayMs = 2000
-): Promise<T> {
-  const keys = getGeminiApiKeys();
-  if (keys.length === 0) throw new Error("GEMINI_API_KEY is not set.");
-
-  let lastError: any;
-  for (let i = 0; i < keys.length; i++) {
-    const client = getGeminiClientForKey(keys[i]);
-    const keyLabel = keys.length > 1 ? `${label} key${i + 1}/${keys.length}` : label;
-    try {
-      return await withRetry(keyLabel, () => fn(client), maxAttemptsPerKey, baseDelayMs);
-    } catch (err: any) {
-      lastError = err;
-      const classification = classifyGeminiError(err);
-      const hasNextKey = i < keys.length - 1;
-      if (hasNextKey && classification.kind !== "other") {
-        console.warn(
-          `[EnergyBae][${label}] Key ${i + 1}/${keys.length} exhausted (${classification.kind}) — falling back to key ${i + 2}/${keys.length}.`
-        );
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw lastError;
-}
-
-// ─── PDF page-count detector (pure Buffer — no external library needed) ──────
-// Scans the raw PDF bytes for "/Type /Page" dictionary entries, which appear
-// once per page object in both digitally-generated and scanned PDFs.
-// Falls back to 1 if the pattern is not found (e.g. for images).
-export function detectPdfPageCount(buffer: Buffer): number {
-  try {
-    const text = buffer.toString("latin1"); // latin1 is safe for binary scan
-    // Count occurrences of "/Type /Page" or "/Type/Page" (PDF spec allows both)
-    const matches = text.match(/\/Type\s*\/Page[^s]/g);
-    const count = matches ? matches.length : 0;
-    return count > 0 ? count : 1;
-  } catch {
-    return 1;
-  }
-}
 
 // ─── Field validation / sanitization ───────────────────────────────────────
 // Cleans up raw Gemini output: enforces numeric types, strips non-digits from
@@ -389,6 +248,9 @@ function sanitizeExtractedData(raw: any): any {
 const LOG_FILE_PATH = path.join(process.cwd(), "logs", "processing.log");
 
 function appendProcessingLog(entry: Record<string, any>) {
+  // Vercel's filesystem is read-only/ephemeral — the file log only exists on a
+  // long-running server (npm start / Docker).
+  if (process.env.VERCEL) return;
   try {
     const dir = path.dirname(LOG_FILE_PATH);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -616,18 +478,78 @@ const SAMPLE_MSEDCL_DATA = {
   carbonReductionTons: 1.66
 };
 
+// Auth — login/logout/me must be reachable while logged out, so these are
+// registered BEFORE the blanket requireAuth gate below (see docs/superpowers
+// specs "Auth + Roles" plan). loginLimiter is declared here, before the
+// registrar, so it runs first via next() — same zero-touch-the-registrar
+// pattern as the Bill Analysis permission gates below.
+app.post("/api/auth/google-login", loginLimiter);
+registerAuthRoutes(app);
+
+// Every /api/* route registered from this line onward requires a valid
+// session. The SPA shell itself (Vite middleware / static dist serving,
+// startApp() at the bottom of this file) is NOT behind this gate — it
+// carries no secrets; the login wall is enforced by these 401s plus the
+// client-side AuthContext render gate.
+app.use("/api", requireAuth);
+
 // Commercial Bill Analysis — fully isolated module (own prompt, schema,
 // sanitizer, Excel template, and processing log). Generic infra is injected
-// so this never needs to import back from server.ts.
+// so this never needs to import back from server.ts. extractLimiter is
+// declared before the registrar for the same reason loginLimiter is above.
+// Bill Analysis routes whose files stay untouched get their permission
+// declared here, before their registrars (Express runs these first).
+// Every OTHER route declares requirePermission on itself, in its own file —
+// src/routePermissions.test.ts fails if any /api route has neither.
+app.post("/api/commercial/extract", requirePermission("bill_analysis.create"), extractLimiter);
+app.post("/api/commercial/export", requirePermission("bill_analysis.view"));
+app.post("/api/commercial/batch-export", requirePermission("bill_analysis.view"));
+// Public route that also calls Gemini (quality check) → same per-IP budget.
+app.post("/api/enhance-bill", requirePermission("bill_analysis.create"), extractLimiter);
 registerCommercialRoutes(app, {
-  withGeminiKeyFallback,
-  classifyGeminiError,
+  getGeminiClient,
+  withRetry,
+  isTransientError,
   detectPdfPageCount,
-  validateConfiguredGeminiApiKeys,
+  validateGeminiApiKeyFormat,
 });
 
+// Price Database — the company's catalogue, wire and inverter prices
+// (catalogue_state + wire_prices + inverter_prices, organization-scoped).
+// Each route declares its own permission (catalogue.* / pricing.*).
+registerCatalogueRoutes(app);
+
+// Wire Prices — upload-preview parsing for the wire_prices catalogue upload
+// flow (parses only; writes happen in a later CRUD/upsert task).
+registerWirePriceRoutes(app);
+registerInverterPriceRoutes(app);
+
+// Team and roles — per-route permissions (user.*, role.*) inside the registrars.
+registerUserRoutes(app);
+registerRoleRoutes(app);
+
+// Saved proposals — multi-proposal save/load with a frozen BOQ snapshot per
+// save (see BOQ_Revised_Implementation_Plan.md D21).
+registerProposalRoutes(app);
+
+// Customers, Projects and their Solar Systems (migration 0017).
+registerCustomerRoutes(app);
+registerProjectRoutes(app);
+registerBoqTemplateRoutes(app);
+
+// Enhance & Clear Bill — deterministic pre-processing (denoise/contrast/
+// sharpen/upscale + a Gemini readability check) that runs before a file
+// reaches /api/extract or /api/commercial/extract. Neither extraction route
+// is modified: this hands back a normal single file in the same shape they
+// already accept.
+registerBillEnhanceRoutes(app);
+
+// Company branding (logo, name, contacts) — one row per organization.
+// GET for every member, PUT needs organization.branding.update.
+registerOrganizationRoutes(app);
+
 // API Endpoint - Check system status
-app.get("/api/status", (req, res) => {
+app.get("/api/status", requireMember, (req, res) => {
   const hasGeminiKey = !!process.env.GEMINI_API_KEY;
   res.json({
     geminiConfigured: hasGeminiKey,
@@ -638,7 +560,7 @@ app.get("/api/status", (req, res) => {
 });
 
 // API Endpoint - Extract bill info
-app.post("/api/extract", async (req, res) => {
+app.post("/api/extract", requirePermission("bill_analysis.create"), extractLimiter, async (req, res) => {
   const { fileData, fileName, isSample } = req.body;
   const requestStartedAt = Date.now();
 
@@ -656,7 +578,8 @@ app.post("/api/extract", async (req, res) => {
   }
 
   // Real Gemini visual extraction
-  const keyCheck = validateConfiguredGeminiApiKeys();
+  const apiKey = process.env.GEMINI_API_KEY;
+  const keyCheck = validateGeminiApiKeyFormat(apiKey);
   if (!keyCheck.valid) {
     console.error(`[EnergyBae] ✗ Gemini API key validation failed: ${keyCheck.reason}`);
     return res.status(400).json({
@@ -669,7 +592,11 @@ app.post("/api/extract", async (req, res) => {
     // ── 1. Decode MIME type and strip data URL prefix ──────────────────────────
     // Handles image/*, application/pdf, and any future MIME type correctly.
     const mimeMatch = fileData.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9+.-]+);base64,/);
-    const detectedMime = mimeMatch ? mimeMatch[1] : "application/pdf";
+    const detectedMime = mimeMatch ? mimeMatch[1].toLowerCase() : "application/pdf";
+    // Public endpoint: only bill formats reach Gemini (no HTML/zip/etc.).
+    if (!isAcceptedBillMime(detectedMime)) {
+      return res.status(415).json({ success: false, error: "Unsupported file type — upload a PDF, PNG or JPG bill." });
+    }
     const cleanBase64 = fileData.replace(/^data:[^;]+;base64,/, "");
 
     if (!cleanBase64) {
@@ -693,7 +620,7 @@ app.post("/api/extract", async (req, res) => {
     if (pageCount === 1) {
       console.log("[EnergyBae] Single-page document — proceeding with standard extraction.");
     } else {
-      console.log(`[EnergyBae] Multi-page PDF (${pageCount} pages) — Gemini 2.5-flash handles multi-page PDFs natively. Sending full document.`);
+      console.log(`[EnergyBae] Multi-page PDF (${pageCount} pages) — ${GEMINI_MODEL} handles multi-page PDFs natively. Sending full document.`);
     }
 
     // ── 3. File size guard (Gemini inline data limit is ~20 MB) ───────────────
@@ -722,18 +649,19 @@ app.post("/api/extract", async (req, res) => {
     };
     const textPart = { text: MSEDCL_PROMPT };
 
-    // ── 5. Gemini OCR call with exponential-backoff retry + multi-key fallback ──
-    // Strategy: send the FULL document (Gemini 2.5-flash natively understands
-    // multi-page PDFs). If the model returns 503 / UNAVAILABLE / rate-limit,
-    // retry up to 4 times total with 2 s → 4 s → 8 s delays; if the active key's
-    // daily quota is exhausted, fall back to the next configured key.
-    console.log(`[EnergyBae] Sending document to Gemini 2.5-flash (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)...`);
+    // ── 5. Gemini OCR call with exponential-backoff retry ──────────────────────
+    // Strategy: send the FULL document (the Gemini flash models natively
+    // understand multi-page PDFs). If the model returns 503 / UNAVAILABLE /
+    // rate-limit, retry up to 4 times total with 2 s → 4 s → 8 s delays.
+    // This makes the pipeline robust against transient demand spikes without
+    // requiring any page splitting or external PDF library.
+    console.log(`[EnergyBae] Sending document to ${GEMINI_MODEL} (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)...`);
 
-    const response = await withGeminiKeyFallback(
+    const response = await generateWithGeminiFallback(
       `Gemini-OCR-${pageCount}pg`,
-      (ai) =>
-        ai.models.generateContent({
-          model: "gemini-2.5-flash",
+      (client, model) =>
+        client.models.generateContent({
+          model,
           contents: { parts: [filePart, textPart] },
           config: {
             responseMimeType: "application/json",
@@ -744,9 +672,7 @@ app.post("/api/extract", async (req, res) => {
             // avoiding the open-ended (and much slower) dynamic thinking budget on flash.
             thinkingConfig: { thinkingBudget: 512 },
           },
-        }),
-      2,     // max 4 total attempts
-      2000   // base delay: 2 s (doubles each retry: 2 s, 4 s, 8 s)
+        })
     );
 
     console.log("[EnergyBae] ✓ Gemini response received — parsing JSON...");
@@ -764,7 +690,8 @@ app.post("/api/extract", async (req, res) => {
       parsedJson = JSON.parse(cleaned || "{}");
     } catch (parseErr: any) {
       console.error("[EnergyBae] JSON parse error:", parseErr.message);
-      console.error("[EnergyBae] Raw model text (first 500 chars):", rawText.substring(0, 500));
+      // Length only — the model text is the customer's bill contents.
+      console.error(`[EnergyBae] Unparseable model text (${rawText.length} chars).`);
       throw new Error(
         "The AI model returned a response that could not be parsed as JSON. " +
         "This usually happens when the bill scan quality is too low, the document is password-protected, " +
@@ -776,8 +703,7 @@ app.post("/api/extract", async (req, res) => {
 
     const historyCount = sanitized.billingHistory.length;
     console.log(`[EnergyBae] ✓ Extraction complete.`);
-    console.log(`[EnergyBae]   Consumer:    ${sanitized.consumerName || "(not found)"}`);
-    console.log(`[EnergyBae]   Meter No:    ${sanitized.meterNumber || "(not found)"}`);
+    // Consumer name / meter number deliberately not logged (bill PII).
     console.log(`[EnergyBae]   Bill Month:  ${sanitized.billingMonth || "(not found)"}`);
     console.log(`[EnergyBae]   History:     ${historyCount} month(s) extracted`);
 
@@ -795,7 +721,7 @@ app.post("/api/extract", async (req, res) => {
       processingTimeMs: Date.now() - requestStartedAt,
       ocrConfidence: 89.2,
       extractedMonth: sanitized.billingMonth || "N/A",
-      consumerNumber: sanitized.consumerNumber || "N/A",
+      // Public scanner: no consumer identifiers in the audit log.
       unitsExtracted: sanitized.currentUnits,
       billAmount: sanitized.currentBillAmount,
       fixedCharges: sanitized.fixedCharges,
@@ -823,16 +749,35 @@ app.post("/api/extract", async (req, res) => {
     // Never expose raw Gemini API error JSON (like the 503 JSON blob) to the UI.
     let userMessage: string;
 
-    const classification = classifyGeminiError(error);
-    if (classification.kind === "daily-quota") {
+    if (error instanceof ExtractionUnavailableError) {
+      appendProcessingLog({
+        uploadedFileName: fileName || "unnamed file",
+        processingTimeMs: Date.now() - requestStartedAt,
+        ocrConfidence: null,
+        extractedMonth: "N/A",
+        consumerNumber: "N/A",
+        unitsExtracted: null,
+        billAmount: null,
+        fixedCharges: null,
+        connectionType: "N/A",
+        sanctionedLoadKw: null,
+        solarCapacityKw: null,
+        panelsRequired: null,
+        exportStatus: "n/a",
+        googleSheetsStatus: "n/a",
+        errors: rawMessage,
+      });
+      return res.status(503).json({
+        success: false,
+        code: "EXTRACTION_UNAVAILABLE",
+        error: error.message,
+      });
+    }
+
+    if (isTransientError(error)) {
       userMessage =
-        "Daily Gemini API quota exhausted (free-tier limit is 20 requests/day for gemini-2.5-flash) on all configured API keys. " +
-        "It resets at midnight Pacific Time — try again later, add another GEMINI_API_KEY_2/3 fallback key, or upgrade your Google AI Studio billing plan for a higher limit. " +
-        "(Tip: use the sample bill to verify the rest of the pipeline without consuming quota.)";
-    } else if (classification.kind === "transient") {
-      const waitSeconds = classification.retryDelaySeconds ? Math.max(1, Math.ceil(classification.retryDelaySeconds)) : 60;
-      userMessage =
-        `The AI model is experiencing high demand. Please wait about ${waitSeconds} seconds and try again. ` +
+        "The AI model is experiencing high demand and did not respond after 4 retry attempts. " +
+        "This is a temporary issue on Google's side. Please wait 1–2 minutes and try again. " +
         "(Tip: If this keeps happening, try the sample bill to verify the rest of the pipeline is working.)";
     } else if (
       rawMessage.toLowerCase().includes("api key") ||
@@ -842,6 +787,10 @@ app.post("/api/extract", async (req, res) => {
       userMessage =
         "API key error — the Gemini API key is invalid or not authorised. " +
         "Please verify your GEMINI_API_KEY in the environment Secrets panel.";
+    } else if (rawMessage.toLowerCase().includes("quota")) {
+      userMessage =
+        "API quota exceeded for this billing period. " +
+        "Please check your Google AI Studio quota limits or try again after the quota resets.";
     } else if (rawMessage.toLowerCase().includes("too large") || rawMessage.toLowerCase().includes("413")) {
       userMessage = rawMessage;
     } else if (rawMessage.toLowerCase().includes("could not be parsed") || rawMessage.toLowerCase().includes("parse")) {
@@ -849,8 +798,7 @@ app.post("/api/extract", async (req, res) => {
     } else {
       userMessage =
         "The AI vision scanner encountered an unexpected error while reading this bill. " +
-        "Please try a clearer scan, a different file format, or contact support if the issue persists. " +
-        `(Detail: ${rawMessage})`;
+        "Please try a clearer scan, a different file format, or contact support if the issue persists.";
     }
 
     appendProcessingLog({
@@ -880,7 +828,7 @@ app.post("/api/extract", async (req, res) => {
 
 
 // API Endpoint - Export to real Excel file (Fidelity side-by-side template matches Pranay HOME exactly)
-app.post("/api/download-excel", (req, res) => {
+app.post("/api/download-excel", requirePermission("bill_analysis.view"), (req, res) => {
   const { slot1Data, solarPanelUsed } = req.body;
 
   if (!slot1Data) {
@@ -956,6 +904,14 @@ async function startApp() {
   });
 }
 
-startApp().catch(err => {
-  console.error("Express initialization error occurred:", err);
-});
+// On Vercel the static SPA is served by Vercel itself (vite build → dist) and
+// this app runs as one serverless function (api/index.js → api/_server.mjs,
+// bundled by `npm run build:vercel`), so it must not listen or mount Vite.
+// Everywhere else (`npm run dev`, `npm start`) it is the one-port server.
+if (!process.env.VERCEL) {
+  startApp().catch(err => {
+    console.error("Express initialization error occurred:", err);
+  });
+}
+
+export default app;

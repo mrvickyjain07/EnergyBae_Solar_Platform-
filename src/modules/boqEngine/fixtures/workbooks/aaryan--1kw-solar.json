@@ -1,0 +1,2217 @@
+{
+ "source": {
+  "workbook": "Aaryan 5kW BOQ Solar Template.xlsx",
+  "sheet": "1kW Solar",
+  "headerRow": 13
+ },
+ "params": {
+  "Required Solar Capacity": {
+   "row": 1,
+   "B": {
+    "v": 1
+   },
+   "C": {
+    "v": 1.18,
+    "f": "=$B$3*$B$22/1000"
+   }
+  },
+  "Panel Price/Wp": {
+   "row": 2,
+   "B": {
+    "v": 15
+   }
+  },
+  "Solar Module Size (W)": {
+   "row": 3,
+   "B": {
+    "v": 590
+   }
+  },
+  "System Connection Phase": {
+   "row": 4,
+   "B": {
+    "v": 1
+   }
+  },
+  "Building No. of Floors": {
+   "row": 5,
+   "B": {
+    "v": 1
+   }
+  },
+  "Inverter Installation Floor": {
+   "row": 6,
+   "B": {
+    "v": 1
+   }
+  },
+  "No. of Inverter": {
+   "row": 7,
+   "B": {
+    "v": 1
+   }
+  },
+  "Inverter Size": {
+   "row": 8,
+   "B": {
+    "v": "1 kW"
+   },
+   "C": {
+    "v": "Solis"
+   }
+  },
+  "No. of Panel Rows": {
+   "row": 9,
+   "B": {
+    "v": 1
+   }
+  },
+  "Structure Height Lower (FT.)": {
+   "row": 10,
+   "B": {
+    "v": 3
+   },
+   "C": {
+    "v": 0.915,
+    "f": "=($B$10*0.305)"
+   }
+  },
+  "Structure Height Upper (FT.)": {
+   "row": 11,
+   "B": {
+    "v": 5
+   },
+   "C": {
+    "v": 1.525,
+    "f": "=(B11*0.305)"
+   }
+  },
+  "3.5ft GI Shed (sqft)": {
+   "row": 12,
+   "B": {
+    "v": 0
+   }
+  },
+  "Rubber Seal Water Proof (MTS.)": {
+   "row": 13
+  },
+  "Battery Size": {
+   "row": 14,
+   "B": {
+    "v": "5kWh"
+   },
+   "C": {
+    "v": "Li-ion"
+   }
+  },
+  "No. of Batteries": {
+   "row": 15,
+   "B": {
+    "v": 1
+   },
+   "C": {
+    "v": "(Extra Length)"
+   }
+  },
+  "DC Cable Length (MTS.)": {
+   "row": 16,
+   "B": {
+    "v": 5,
+    "f": "=ROUNDUP(($B$23*1.2)+($B$9*2.3),0)"
+   },
+   "C": {
+    "v": 5
+   }
+  },
+  "AC Cable Length (MTS.)": {
+   "row": 17,
+   "B": {
+    "v": 7,
+    "f": "=ROUNDUP(($B$6+1)*3.5,0)"
+   },
+   "C": {
+    "v": 10
+   }
+  },
+  "Earthing Cable Length for Structure (MTS.)": {
+   "row": 18,
+   "B": {
+    "v": 16,
+    "f": "=ROUNDUP(($B$5+2)*3.5+5,0)"
+   },
+   "C": {
+    "v": 0
+   }
+  },
+  "Earthing Cable Length for Inverter (MTS.)": {
+   "row": 19,
+   "B": {
+    "v": 9,
+    "f": "=ROUNDUP($B$6*3.5+5,0)"
+   },
+   "C": {
+    "v": 0
+   }
+  },
+  "LA Earthing Cable Length (MTS.)": {
+   "row": 20,
+   "B": {
+    "v": 17,
+    "f": "=ROUNDUP(($B$5+1)*3.5+10,0)"
+   },
+   "C": {
+    "v": 0
+   }
+  },
+  "No. of Earthing Pit": {
+   "row": 21,
+   "B": {
+    "v": 3
+   }
+  },
+  "No. of Solar Panels": {
+   "row": 22,
+   "B": {
+    "v": 2,
+    "f": "=ROUNDUP(($B$1*1000/$B$3),0)"
+   }
+  },
+  "No. of Panels in a Line": {
+   "row": 23,
+   "B": {
+    "v": 2,
+    "f": "=B22/B9"
+   }
+  },
+  "No. of rafters": {
+   "row": 24,
+   "B": {
+    "v": 1,
+    "f": "=roundup(B23/2,0)"
+   }
+  },
+  "No of legs": {
+   "row": 25,
+   "B": {
+    "v": 2,
+    "f": "=B24*2"
+   },
+   "C": {
+    "v": 1,
+    "f": "=if(B9/3=int(B9/3),0,1)"
+   }
+  },
+  "Bracing Support Length": {
+   "row": 26,
+   "B": {
+    "v": 1.5,
+    "f": "=3*B9/2"
+   }
+  },
+  "Rafter Length 80x40x2mm (MTS)": {
+   "row": 27,
+   "B": {
+    "v": 10,
+    "f": "=ROUNDUP((B24*2.3*B9)+(B24*C10)+(B24*C11)+(B26*0.5),-1)"
+   }
+  },
+  "Purlin Length 40x40x2mm (MTS)": {
+   "row": 28,
+   "B": {
+    "v": 8,
+    "f": "=ROUNDUP(($B$22*1.2*3),0)"
+   }
+  },
+  "Voltage per String": {
+   "row": 29,
+   "B": {
+    "v": 99.64,
+    "f": "=49.82*(B22/B31)"
+   },
+   "C": {
+    "v": "for 550Wp PV "
+   }
+  },
+  "No of panels/string": {
+   "row": 30,
+   "B": {
+    "v": 2,
+    "f": "=B22/B31"
+   }
+  },
+  "No. of Strings": {
+   "row": 31,
+   "B": {
+    "v": 1,
+    "f": "=IFS(C8=\"Solis\",INDEX(Sheet2!A50:I69,MATCH(B8,Sheet2!A50:A69,0),5),C8=\"Solax\",INDEX(Sheet2!A71:I93,MATCH(B8,Sheet2!A71:A93,0),5))"
+   }
+  },
+  "No. of MC4 Connectors": {
+   "row": 32,
+   "B": {
+    "v": 4,
+    "f": "=$B$31*4"
+   }
+  },
+  "MC4 Connector Size (sqmm)": {
+   "row": 33,
+   "B": {
+    "v": 1.5,
+    "f": "=$B$35"
+   }
+  },
+  "DC Cable Size (No. of Cores)": {
+   "row": 34,
+   "B": {
+    "v": 2
+   }
+  },
+  "DC Cable Size (sqmm)": {
+   "row": 35,
+   "B": {
+    "v": 1.5,
+    "f": "=Sheet2!K24"
+   }
+  },
+  "AC Cable Size (No. of Cores)": {
+   "row": 36,
+   "B": {
+    "v": 2,
+    "f": "=IFS(B4=3,4,B4=1,2)"
+   }
+  },
+  "AC Cable Size (sqmm)": {
+   "row": 37,
+   "B": {
+    "v": 6,
+    "f": "=Sheet2!$F$45"
+   }
+  },
+  "LA Earthing Cable Size (sqmm)": {
+   "row": 38,
+   "B": {
+    "v": 16
+   }
+  },
+  "Earthing Cable Size (sqmm)": {
+   "row": 39,
+   "B": {
+    "v": 4
+   }
+  },
+  "DC MCB Rating (Amp)": {
+   "row": 41,
+   "B": {
+    "v": 32
+   }
+  },
+  "No. of DC MCB (2 Pole)": {
+   "row": 42,
+   "B": {
+    "v": 1,
+    "f": "=IF(B45<B41,1,2)"
+   }
+  },
+  "AC MCB Rating (Amp)": {
+   "row": 43,
+   "B": {
+    "v": 64
+   }
+  },
+  "No. of AC MCB": {
+   "row": 44,
+   "B": {
+    "v": 2
+   }
+  },
+  "DC Cable Current": {
+   "row": 45,
+   "B": {
+    "v": 17.76395022,
+    "f": "=(B3*B22/B29/B31)*1.5"
+   }
+  },
+  "AC Cable Current": {
+   "row": 46,
+   "B": {
+    "v": 7.695652174,
+    "f": "=(B3*B22/B7/C48)*1.5"
+   }
+  },
+  "Inverter Input Side Voltage": {
+   "row": 47,
+   "B": {
+    "v": 330,
+    "f": "=IFS(C8=\"Solis\",INDEX(Sheet2!A50:I69,MATCH(B8,Sheet2!A50:A69,0),9),C8=\"Solax\",INDEX(Sheet2!A71:I93,MATCH(B8,Sheet2!A71:A93,0),9))"
+   }
+  },
+  "Inverter Output Side Voltage": {
+   "row": 48,
+   "B": {
+    "v": 132.7867906,
+    "f": "=C48/1.7321"
+   },
+   "C": {
+    "v": 230,
+    "f": "=IFS(B4=3,415*1.7321,B4=1,230)"
+   }
+  }
+ },
+ "lines": [
+  {
+   "row": 14,
+   "material": "Solar module",
+   "material_cell": {
+    "v": "Solar module"
+   },
+   "spec": {
+    "v": "590 Wp Mono-TOPCon DCR"
+   },
+   "make": {
+    "v": "ReNew or as equivalent"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 2,
+    "f": "=$B$22"
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 8850,
+    "f": "=B3*B2"
+   },
+   "price": {
+    "v": 17700,
+    "f": "=J14*L14"
+   }
+  },
+  {
+   "row": 15,
+   "material": "Solar inverter",
+   "material_cell": {
+    "v": "Solar inverter"
+   },
+   "spec": {
+    "v": "Off-grid 4 kVA (1 MPPT, 1 String, 9 Panel*1 String)"
+   },
+   "make": {
+    "v": "Solis/Solax/Growatt/Deye"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 24946,
+    "f": "=14705*120%+7300"
+   },
+   "price": {
+    "v": 24946,
+    "f": "=J15*L15"
+   }
+  },
+  {
+   "row": 16,
+   "material": "Data logger",
+   "material_cell": {
+    "v": "Data logger"
+   },
+   "spec": {
+    "v": "Ethernet/Wifi/GPRS"
+   },
+   "make": {
+    "v": "As per inverter company"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1
+   },
+   "note": {
+    "v": "-"
+   },
+   "price": {
+    "v": 0,
+    "f": "=J16*L16"
+   }
+  },
+  {
+   "row": 17,
+   "material": "Battery",
+   "material_cell": {
+    "v": "Battery"
+   },
+   "spec": {
+    "v": "5kWh",
+    "f": "=B14"
+   },
+   "make": {
+    "v": "Exide/Livguard/Luminous"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 0
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 52000
+   },
+   "price": {
+    "v": 0,
+    "f": "=J17*L17"
+   }
+  },
+  {
+   "row": 18,
+   "material": "DC Distribution Box",
+   "material_cell": {
+    "v": "DC Distribution Box"
+   },
+   "spec": {
+    "v": "Technical Specs of DC Distribution Box (1 IN /1  OUT) :-  - 1 Nos. of Distribution box, IP66 Poly carbonate Material of Enclosure Type, Opaque/Transparent type Box.  - 2 Nos. of DC MCB, 16 A, 1000 V.  - 2 Nos. of DC SPD-1000V-40KA-TYPE:2."
+   },
+   "make": {
+    "v": "ABB/Schinder/L&T/Havells"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1,
+    "f": "=B7"
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 1800
+   },
+   "price": {
+    "v": 1800,
+    "f": "=J18*L18"
+   }
+  },
+  {
+   "row": 19,
+   "material": "DC Cable",
+   "material_cell": {
+    "v": "DC Cable"
+   },
+   "spec": {
+    "v": "2 C. 4 sq.mm , Annealed Tinned Flexible Cu Conductor Electron Beam Cross linked XLPO 120 Deg C, Sheathed and insulated, Anti Termite & Anti Rodent, conforming to EN 50618 standard-FRLS Type. (Type : 1)"
+   },
+   "make": {
+    "v": "Polycab"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 10,
+    "f": "=B16+C16"
+   },
+   "note": {
+    "v": "As per on site routing , you may require extra cable. Please keep extra on site."
+   },
+   "rate": {
+    "v": 85
+   },
+   "price": {
+    "v": 850,
+    "f": "=J19*L19"
+   }
+  },
+  {
+   "row": 20,
+   "material": "MC4 Connectors",
+   "material_cell": {
+    "v": "MC4 Connectors"
+   },
+   "spec": {
+    "v": "4 sq.mm, 1000 V DC, IP68, Application Class-A, Protection class -2. ( Male & Female pairs )"
+   },
+   "make": {
+    "v": "Elmex"
+   },
+   "unit": {
+    "v": "Pair"
+   },
+   "qty": {
+    "v": 4,
+    "f": "=B32"
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 50
+   },
+   "price": {
+    "v": 200,
+    "f": "=J20*L20"
+   }
+  },
+  {
+   "row": 21,
+   "material": "AC Distribution Box (Solar LT Panel)",
+   "material_cell": {
+    "v": "AC Distribution Box (Solar LT Panel)"
+   },
+   "spec": {
+    "v": "Technical Specs of AC Distribution Box (2 IN / 2 OUT) :-  - 1 Nos of ACDB Panel , 2P , 25A , 240V, 50 Hz ACDB Panel Box, Fault level 16 kA/3 Sec with,  - ACDB Panels shall be installed with Type 1 SPDs - 40 kA and shall be suitable for voltage variation of ±10% and frequency variation of ±5%, with earthing point.  - ACDB Panel should be suitable for Outdoor Application.  - Panel should have double compression metallic glands at input & output."
+   },
+   "make": {
+    "v": "ABB/Schinder/L&T"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1
+   },
+   "note": {
+    "v": "Send SLD to Supplier for better understanding of connection."
+   },
+   "rate": {
+    "v": 1800
+   },
+   "price": {
+    "v": 1800,
+    "f": "=J21*L21"
+   }
+  },
+  {
+   "row": 22,
+   "material": "MCB at Client's LT Panel",
+   "material_cell": {
+    "v": "MCB at Client's LT Panel"
+   },
+   "spec": {
+    "v": "Technical Specs :-  - 1 Nos. of  32 Amps 2P MCB in Client LT Panel side with OC/SC/EF protections."
+   },
+   "make": {
+    "v": "ABB/Schinder/L&T/EQV."
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1
+   },
+   "note": {
+    "v": "In Client's LT Panel"
+   },
+   "rate": {
+    "v": 700
+   },
+   "price": {
+    "v": 700,
+    "f": "=J22*L22"
+   }
+  },
+  {
+   "row": 23,
+   "material": "AC Cable",
+   "material_cell": {
+    "v": "AC Cable"
+   },
+   "spec": {
+    "v": "1.1 kV ,Al. Conductor XLPE - 1R X 2C X 4 sq.mm insulated PVC inner sheathed , armoured and PVC outersheathed, FRLS, As per IS 7098. (INVERTER TO METER TO DB)"
+   },
+   "make": {
+    "v": "Polycab/Havells/KEI"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 17,
+    "f": "=B17+C17"
+   },
+   "note": {
+    "v": "As per on site routing , you may require extra cable. Please keep extra on site."
+   },
+   "rate": {
+    "v": 80
+   },
+   "price": {
+    "v": 1360,
+    "f": "=J23*L23"
+   }
+  },
+  {
+   "row": 24,
+   "material": "LA With Mounting Accessories",
+   "material_cell": {
+    "v": "LA With Mounting Accessories"
+   },
+   "spec": {
+    "v": "ESE Type - 25 sq.mm - Suitable for mounting arrangement for 3 Mts CPRI 70 kA Test Report, 100 kA Impulse Withstand test, ESE test & environment test from a reputed agency as per NFC 17 102.(No need if already existing)"
+   },
+   "make": {
+    "v": "Vasudha/Jenflex /EQV."
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1
+   },
+   "rate": {
+    "v": 500
+   },
+   "price": {
+    "v": 500,
+    "f": "=J24*L24"
+   }
+  },
+  {
+   "row": 25,
+   "material": "Earthing cable",
+   "material_cell": {
+    "v": "Earthing cable"
+   },
+   "spec": {
+    "v": "1.1KV, Flexible Copper Conducter FRLS - 1C X 6 sq.mm insulated Unarmoured and Unsheathed Cable as per IS 694/ IS 1554. (Structure Earthing)"
+   },
+   "make": {
+    "v": "Polycab/Havells/KEI"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 16,
+    "f": "=B18+C18"
+   },
+   "note": {
+    "v": "As per on site routing , you may require extra cable & Strip. Please keep extra on site."
+   },
+   "rate": {
+    "v": 21
+   },
+   "price": {
+    "v": 336,
+    "f": "=J25*L25"
+   }
+  },
+  {
+   "row": 26,
+   "material": "Earthing cable",
+   "spec": {
+    "v": "1.1KV, Flexible Copper Conducter FRLS - 1C X 6 sq.mm insulated Unarmoured and Unsheathed Cable as per IS 695/IS 1554. (For Inverter Earthing)"
+   },
+   "make": {
+    "v": "Polycab/Havells/KEI"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 9,
+    "f": "=B19+C19"
+   },
+   "rate": {
+    "v": 21
+   },
+   "price": {
+    "v": 189,
+    "f": "=J26*L26"
+   }
+  },
+  {
+   "row": 27,
+   "material": "Earthing cable",
+   "spec": {
+    "v": "1.1KV, Earthing wire, 25 sq.mm as per IS 695/IS 1554. (LA Earthing)"
+   },
+   "make": {
+    "v": "Polycab/Havells/KEI"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 17,
+    "f": "=B20+C20"
+   },
+   "rate": {
+    "v": 25
+   },
+   "price": {
+    "v": 425,
+    "f": "=J27*L27"
+   }
+  },
+  {
+   "row": 28,
+   "material": "Earthing Pit details",
+   "material_cell": {
+    "v": "Earthing Pit details"
+   },
+   "spec": {
+    "v": "Earthing Pit Specification (DC Earthing for Structure & DC Array Yard):-  Chemical Earthing Pit As Per IS 3043,  A) 17.2 mm Dia, 1.5 MTS Cu Coated(250 Microns) Steel Rod, T Joints For Earth Strip Connection  B) Chemical Earthing Backfill Compound, 15 Kg  C) Pre Cast Chamber  Adhension/Bending/Environment test/UL Approved/Cu coating test for Micron Coating for Earth Electrode Ph Value, Leaching test, Resistivity test & Strength test for backfill chemical"
+   },
+   "make": {
+    "v": "-"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 0
+   },
+   "note": {
+    "v": "For DCDB, Structure Earthing"
+   },
+   "rate": {
+    "v": 1000
+   },
+   "price": {
+    "v": 0,
+    "f": "=J28*L28"
+   }
+  },
+  {
+   "row": 29,
+   "material": "Lugs",
+   "material_cell": {
+    "v": "Lugs"
+   },
+   "spec": {
+    "v": "Cu., Ring Type- 6 Sq.mm. (Panel to Panel earthing)"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 4,
+    "f": "=B22*2"
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 5
+   },
+   "price": {
+    "v": 20,
+    "f": "=J29*L29"
+   }
+  },
+  {
+   "row": 30,
+   "material": "Lugs",
+   "spec": {
+    "v": "Cu., pin Type- 6 Sq.mm. (Inverter earthing)"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 2,
+    "f": "=B7*2"
+   },
+   "note": {
+    "v": "Per Inverter 2 Nos."
+   },
+   "rate": {
+    "v": 10
+   },
+   "price": {
+    "v": 20,
+    "f": "=J30*L30"
+   }
+  },
+  {
+   "row": 31,
+   "material": "Lugs",
+   "spec": {
+    "v": "LA earthing - Al , ring type 16 sqmm"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 1,
+    "f": "=J28+1"
+   },
+   "rate": {
+    "v": 20
+   },
+   "price": {
+    "v": 20,
+    "f": "=J31*L31"
+   }
+  },
+  {
+   "row": 32,
+   "material": "Lugs",
+   "spec": {
+    "v": "Cu, Ring Type - 4 Sq.mm - Long Barrel type (ACDB & DCDB I/P Side)"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 8,
+    "f": "=(B34*2)+(B36*2)"
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 10
+   },
+   "price": {
+    "v": 80,
+    "f": "=J32*L32"
+   }
+  },
+  {
+   "row": 33,
+   "material": "Glands  (PVC Type )",
+   "material_cell": {
+    "v": "Glands  (PVC Type )"
+   },
+   "spec": {
+    "v": "32mm for 1C X 6 sqmm (HEX)"
+   },
+   "make": {
+    "v": "HUMMEL/METALMECH"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 0
+   },
+   "note": {
+    "v": "For LT Panel in Cable I/p & O/p"
+   },
+   "rate": {
+    "v": 20
+   },
+   "price": {
+    "v": 0,
+    "f": "=J33*L33"
+   }
+  },
+  {
+   "row": 34,
+   "material": "Nut Bolt & Washer Set",
+   "material_cell": {
+    "v": "Nut Bolt & Washer Set"
+   },
+   "spec": {
+    "v": "100mm X M10 (Anchor Bolt)"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 16,
+    "f": "=J45*4"
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 16
+   },
+   "price": {
+    "v": 256,
+    "f": "=J34*L34"
+   }
+  },
+  {
+   "row": 35,
+   "material": "Nut Bolt & Washer Set",
+   "spec": {
+    "v": "M8 or M6 Hot Dip Galvanised - Inverter earthing"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 6,
+    "f": "=B7*6"
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 10
+   },
+   "price": {
+    "v": 60,
+    "f": "=J35*L35"
+   }
+  },
+  {
+   "row": 36,
+   "material": "Nut Bolt & Washer Set",
+   "spec": {
+    "v": "M8 x 100 Hot Dip Galvanised for Purlin"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 0
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 10
+   },
+   "price": {
+    "v": 0,
+    "f": "=J36*L36"
+   }
+  },
+  {
+   "row": 37,
+   "material": "Eletrical Tape",
+   "material_cell": {
+    "v": "Eletrical Tape"
+   },
+   "spec": {
+    "v": "R,Y,B,Black,G (Each)"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 3
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 20
+   },
+   "price": {
+    "v": 60,
+    "f": "=J37*L37"
+   }
+  },
+  {
+   "row": 38,
+   "material": "Cable Ties",
+   "material_cell": {
+    "v": "Cable Ties"
+   },
+   "spec": {
+    "v": "Nylon Cable Tie,-10 85 degree UV Protected - size 300*4.8 mm"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Packet"
+   },
+   "qty": {
+    "v": 1
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 200
+   },
+   "price": {
+    "v": 200,
+    "f": "=J38*L38"
+   }
+  },
+  {
+   "row": 39,
+   "material": "Conduits",
+   "material_cell": {
+    "v": "Conduits"
+   },
+   "spec": {
+    "v": "PVC Flexible and Fixed Conduit - 25 mm"
+   },
+   "make": {
+    "v": "TIGER/APOLLO"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 18,
+    "f": "=ROUNDUP((J19+J23+J27+J26)/3,0)"
+   },
+   "note": {
+    "v": "As per on site routing , you may require extra material. Please keep extra on site."
+   },
+   "rate": {
+    "v": 20
+   },
+   "price": {
+    "v": 360,
+    "f": "=J39*L39"
+   }
+  },
+  {
+   "row": 40,
+   "material": "Conduits",
+   "spec": {
+    "v": "Tee Bend 25 mm PVC"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 9,
+    "f": "=roundup(J39/2,0)"
+   },
+   "rate": {
+    "v": 10
+   },
+   "price": {
+    "v": 90,
+    "f": "=L40*J40"
+   }
+  },
+  {
+   "row": 41,
+   "material": "Cable Tag",
+   "material_cell": {
+    "v": "Cable Tag"
+   },
+   "spec": {
+    "v": "2C X 6 Sqmm, CU CABLE, INVERTER NO. xx TO LT PANEL NO. xx"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 8,
+    "f": "=(B36+B34*2)+2"
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 20
+   },
+   "price": {
+    "v": 0
+   }
+  },
+  {
+   "row": 42,
+   "material": "Ferules",
+   "material_cell": {
+    "v": "Ferules"
+   },
+   "spec": {
+    "v": "Pre Printed - 8mm - 1 To 2 STRING"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Set"
+   },
+   "qty": {
+    "v": 1,
+    "f": "=B31"
+   },
+   "note": {
+    "v": "-"
+   },
+   "rate": {
+    "v": 30
+   },
+   "price": {
+    "v": 0
+   }
+  },
+  {
+   "row": 43,
+   "material": "Structure",
+   "material_cell": {
+    "v": "Structure"
+   },
+   "spec": {
+    "v": "ISI standard 80 microns GI structure"
+   },
+   "make": {
+    "v": "80x40x2"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 18
+   },
+   "note": {
+    "v": 0
+   },
+   "rate": {
+    "v": 288
+   },
+   "price": {
+    "v": 5184,
+    "f": "=J43*L43"
+   },
+   "extra": {
+    "v": "140/kg"
+   }
+  },
+  {
+   "row": 44,
+   "material": "Structure",
+   "make": {
+    "v": "40x40x2 (Purlin)"
+   },
+   "unit": {
+    "v": "MTS"
+   },
+   "qty": {
+    "v": 7.2,
+    "f": "=J$14*1.2*3"
+   },
+   "rate": {
+    "v": 155
+   },
+   "price": {
+    "v": 1116,
+    "f": "=L44*J44"
+   }
+  },
+  {
+   "row": 45,
+   "material": "Structure",
+   "make": {
+    "v": "Base plate"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 4
+   },
+   "note": {
+    "v": 0
+   },
+   "rate": {
+    "v": 200
+   },
+   "price": {
+    "v": 800,
+    "f": "=J45*L45"
+   }
+  },
+  {
+   "row": 46,
+   "material": "Structure",
+   "spec": {
+    "v": "Ladder and Walkway"
+   },
+   "make": {
+    "v": "40x40x2"
+   },
+   "unit": {
+    "v": "MTS."
+   },
+   "qty": {
+    "v": 0
+   },
+   "rate": {
+    "v": 880
+   },
+   "price": {
+    "v": 0,
+    "f": "=J46*L46"
+   }
+  },
+  {
+   "row": 47,
+   "material": "Structure",
+   "spec": {
+    "v": "Ladder and Walkway"
+   },
+   "unit": {
+    "v": "MTS."
+   },
+   "qty": {
+    "v": 0
+   },
+   "rate": {
+    "v": 150
+   },
+   "price": {
+    "v": 0,
+    "f": "=J47*L47"
+   }
+  },
+  {
+   "row": 48,
+   "material": "Structure",
+   "spec": {
+    "v": "Over the shed Al structure"
+   },
+   "unit": {
+    "v": "kW"
+   },
+   "qty": {
+    "v": 0
+   },
+   "rate": {
+    "v": 2900
+   },
+   "price": {
+    "v": 0,
+    "f": "=J48*L48"
+   }
+  },
+  {
+   "row": 49,
+   "material": "U-Clamp",
+   "material_cell": {
+    "v": "U-Clamp"
+   },
+   "spec": {
+    "v": "With Spring and SS- 304 Nut & Bolt"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 3
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 40
+   },
+   "price": {
+    "v": 120,
+    "f": "=J49*L49"
+   }
+  },
+  {
+   "row": 50,
+   "material": "Z-Clamp",
+   "material_cell": {
+    "v": "Z-Clamp"
+   },
+   "spec": {
+    "v": "With Spring and SS- 304 Nut & Bolt"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 6
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 40
+   },
+   "price": {
+    "v": 240,
+    "f": "=J50*L50"
+   }
+  },
+  {
+   "row": 51,
+   "material": "Cleaning System",
+   "material_cell": {
+    "v": "Cleaning System"
+   },
+   "spec": {
+    "v": "Sprinkler"
+   },
+   "make": {
+    "v": "Reputed"
+   },
+   "unit": {
+    "v": "kW"
+   },
+   "qty": {
+    "v": 0
+   },
+   "note": {
+    "v": "Motor Extra"
+   },
+   "rate": {
+    "v": 2755
+   },
+   "price": {
+    "v": 0,
+    "f": "=L51*J51"
+   }
+  },
+  {
+   "row": 52,
+   "material": "J-Bolt",
+   "material_cell": {
+    "v": "J-Bolt"
+   },
+   "spec": {
+    "v": "M-8 SS-304"
+   },
+   "make": {
+    "v": "80*42*25mm"
+   },
+   "unit": {
+    "v": "Nos."
+   },
+   "qty": {
+    "v": 0
+   },
+   "note": {
+    "v": "Please keep extra on site."
+   },
+   "rate": {
+    "v": 0
+   },
+   "price": {
+    "v": 0,
+    "f": "=J52*L52"
+   }
+  }
+ ],
+ "commercial": [
+  {
+   "row": 53,
+   "K": {
+    "v": "Material"
+   },
+   "M": {
+    "v": 59432,
+    "f": "=SUM(M14:M52)"
+   }
+  },
+  {
+   "row": 54,
+   "I": {
+    "v": "kW"
+   },
+   "J": {
+    "v": 1.18
+   },
+   "K": {
+    "v": "Installation"
+   },
+   "L": {
+    "v": 9000
+   },
+   "M": {
+    "v": 10620,
+    "f": "=L54*J54"
+   }
+  },
+  {
+   "row": 55,
+   "K": {
+    "v": "Transportation"
+   },
+   "M": {
+    "v": 2971.6,
+    "f": "=M53*5%"
+   }
+  },
+  {
+   "row": 56,
+   "K": {
+    "v": "Liasioning"
+   },
+   "L": {
+    "v": 0
+   },
+   "M": {
+    "v": 0,
+    "f": "=L56*J54"
+   }
+  },
+  {
+   "row": 57,
+   "K": {
+    "v": "Sub Total"
+   },
+   "M": {
+    "v": 73023.6,
+    "f": "=SUM(M53:M56)"
+   }
+  },
+  {
+   "row": 58,
+   "K": {
+    "v": "Insurance"
+   },
+   "M": {
+    "v": 1226.79648,
+    "f": "=(M57*1.2)/1000*2*7"
+   }
+  },
+  {
+   "row": 59,
+   "K": {
+    "v": "Profit"
+   },
+   "L": {
+    "v": 0.15
+   },
+   "M": {
+    "v": 12886.51765,
+    "f": "=M57/(1-L59)*L59"
+   }
+  },
+  {
+   "row": 60,
+   "K": {
+    "v": "Total"
+   },
+   "L": {
+    "v": 0
+   },
+   "M": {
+    "v": 87136.91413,
+    "f": "=SUM(M57:M59)"
+   },
+   "N": {
+    "v": 99161.80828,
+    "f": "=M60*1.138"
+   }
+  },
+  {
+   "row": 61,
+   "M": {
+    "v": 73.84484248,
+    "f": "=M60/1000/$J$54"
+   },
+   "N": {
+    "v": 84.03543074,
+    "f": "=N60/1000/$J$54"
+   }
+  },
+  {
+   "row": 62,
+   "K": {
+    "v": "First Quote Rate "
+   },
+   "M": {
+    "v": 76,
+    "f": "=ROUNDUP(M61,0)+2"
+   },
+   "N": {
+    "v": 87,
+    "f": "=ROUNDUP(N61,0)+2"
+   }
+  },
+  {
+   "row": 63,
+   "M": {
+    "v": 89680,
+    "f": "=M62*$J$54*1000"
+   },
+   "N": {
+    "v": 102660,
+    "f": "=N62*$J$54*1000"
+   }
+  },
+  {
+   "row": 64,
+   "M": {
+    "v": 99446.152,
+    "f": "=M63*1.1089"
+   }
+  },
+  {
+   "row": 67,
+   "K": {
+    "v": "First Quote Rate With Liaisoning"
+   }
+  },
+  {
+   "row": 73,
+   "K": {
+    "v": "Actuator"
+   },
+   "L": {
+    "v": 32500
+   }
+  },
+  {
+   "row": 74,
+   "K": {
+    "v": "Structure"
+   },
+   "L": {
+    "v": 15000
+   }
+  },
+  {
+   "row": 75,
+   "K": {
+    "v": "Panels "
+   },
+   "L": {
+    "v": 53100
+   }
+  },
+  {
+   "row": 76,
+   "K": {
+    "v": "Inverter"
+   },
+   "L": {
+    "v": 51000
+   }
+  },
+  {
+   "row": 77,
+   "K": {
+    "v": "Battery"
+   },
+   "L": {
+    "v": 54000
+   }
+  },
+  {
+   "row": 78,
+   "L": {
+    "v": 10000
+   }
+  }
+ ],
+ "header": {
+  "F1": {
+   "v": "Rate With Structure"
+  },
+  "I1": {
+   "v": "Rate Without Structure"
+  },
+  "F2": {
+   "v": "Rate With Laisoning"
+  },
+  "G2": {
+   "v": 73.84484248,
+   "f": "=M61"
+  },
+  "I2": {
+   "v": "Rate With Liaisoning"
+  },
+  "J2": {
+   "v": 69.45162214,
+   "f": "=(M60-M43)/1000/J54"
+  },
+  "F3": {
+   "v": "Rate Without Laisoning"
+  },
+  "G3": {
+   "v": 84.03543074,
+   "f": "=N61"
+  },
+  "I3": {
+   "v": "Rate Without Liaisoning"
+  },
+  "J3": {
+   "v": 69.45162214,
+   "f": "=(M60-M56-M43)/1000/J54"
+  },
+  "F4": {
+   "v": "First Quote Rate Without Laisoning"
+  },
+  "G4": {
+   "v": 87,
+   "f": "=N62"
+  },
+  "I4": {
+   "v": "First Quote Rate Without Liaisoning"
+  },
+  "J4": {
+   "v": 72,
+   "f": "=ROUNDUP(J3,0)+2"
+  },
+  "F5": {
+   "v": "First Quote Rate With Laisoning"
+  },
+  "G5": {
+   "v": 76,
+   "f": "=M62"
+  }
+ },
+ "side": {
+  "R13": {
+   "v": "Particulars "
+  },
+  "S13": {
+   "v": "Price"
+  },
+  "T13": {
+   "v": "Remarks"
+  },
+  "O14": {
+   "v": 20824,
+   "f": "=roundup(M14/0.85,0)"
+  },
+  "R14": {
+   "v": "Solar Panels "
+  },
+  "S14": {
+   "v": 20824,
+   "f": "=O14"
+  },
+  "T14": {
+   "v": "590Wp x 9  TOPCon NDCR"
+  },
+  "O15": {
+   "v": 29349,
+   "f": "=roundup(M15/0.85,0)"
+  },
+  "R15": {
+   "v": "Solar Inverter"
+  },
+  "S15": {
+   "v": 29349,
+   "f": "=O15"
+  },
+  "T15": {
+   "v": "5kW Hybrid (On-grid/Off-grid) 8/10 years Warranty\nWifi based Data Logging"
+  },
+  "O16": {
+   "v": 0,
+   "f": "=roundup(M16/0.85,0)"
+  },
+  "R16": {
+   "v": "Battery"
+  },
+  "S16": {
+   "v": 0,
+   "f": "=O17"
+  },
+  "T16": {
+   "v": "5 kWh Liquid Cooled Li-ion 6 years Warranty "
+  },
+  "O17": {
+   "v": 0,
+   "f": "=roundup(M17/0.85,0)"
+  },
+  "R17": {
+   "v": "Structure "
+  },
+  "S17": {
+   "v": 24706,
+   "f": "=roundup(21000/0.85,0)"
+  },
+  "T17": {
+   "v": "GI Pre-fabricated"
+  },
+  "O18": {
+   "v": 2118,
+   "f": "=roundup(M18/0.85,0)"
+  },
+  "R18": {
+   "v": "BOS"
+  },
+  "S18": {
+   "v": 10981,
+   "f": "=sum(O18:O42)"
+  },
+  "T18": {
+   "v": "ACDB, DCDB, Switchgear. Wiring, Earthing, LA"
+  },
+  "O19": {
+   "v": 1000,
+   "f": "=roundup(M19/0.85,0)"
+  },
+  "R19": {
+   "v": "INC and Transport"
+  },
+  "S19": {
+   "v": 30000
+  },
+  "T19": {
+   "v": "In Pune"
+  },
+  "O20": {
+   "v": 236,
+   "f": "=roundup(M20/0.85,0)"
+  },
+  "R20": {
+   "v": "Liaisoning "
+  },
+  "S20": {
+   "v": "Extra at Actual"
+  },
+  "T20": {
+   "v": "Depends on Location "
+  },
+  "O21": {
+   "v": 2118,
+   "f": "=roundup(M21/0.85,0)"
+  },
+  "R21": {
+   "v": "Sub-total"
+  },
+  "S21": {
+   "v": 115860,
+   "f": "=Sum(S14:S19)"
+  },
+  "O22": {
+   "v": 824,
+   "f": "=roundup(M22/0.85,0)"
+  },
+  "R22": {
+   "v": "GST"
+  },
+  "S22": {
+   "v": 10312,
+   "f": "=round(S21*T22,0)"
+  },
+  "T22": {
+   "v": 0.089
+  },
+  "O23": {
+   "v": 1600,
+   "f": "=roundup(M23/0.85,0)"
+  },
+  "R23": {
+   "v": "Total"
+  },
+  "S23": {
+   "v": 126172,
+   "f": "=S22+S21"
+  },
+  "O24": {
+   "v": 589,
+   "f": "=roundup(M24/0.85,0)"
+  },
+  "O25": {
+   "v": 396,
+   "f": "=roundup(M25/0.85,0)"
+  },
+  "O26": {
+   "v": 223,
+   "f": "=roundup(M26/0.85,0)"
+  },
+  "R26": {
+   "v": "Particulars "
+  },
+  "S26": {
+   "v": "Price"
+  },
+  "T26": {
+   "v": "Remarks"
+  },
+  "O27": {
+   "v": 500,
+   "f": "=roundup(M27/0.85,0)"
+  },
+  "R27": {
+   "v": "Solar Panels "
+  },
+  "S27": {
+   "v": 20824,
+   "f": "=O14"
+  },
+  "T27": {
+   "v": "590Wp x 9  TOPCon NDCR"
+  },
+  "O28": {
+   "v": 0,
+   "f": "=roundup(M28/0.85,0)"
+  },
+  "R28": {
+   "v": "Solar Inverter"
+  },
+  "S28": {
+   "v": 57883,
+   "f": "=round(41658/0.87,0)+10000"
+  },
+  "T28": {
+   "v": "5kW Off-grid - 2 years Warranty with GSM DataLogger"
+  },
+  "O29": {
+   "v": 24,
+   "f": "=roundup(M29/0.85,0)"
+  },
+  "R29": {
+   "v": "Battery"
+  },
+  "S29": {
+   "v": 0,
+   "f": "=O17"
+  },
+  "T29": {
+   "v": "5 kWh Liquid Cooled Li-ion 6 years Warranty "
+  },
+  "O30": {
+   "v": 24,
+   "f": "=roundup(M30/0.85,0)"
+  },
+  "R30": {
+   "v": "Structure "
+  },
+  "S30": {
+   "v": 24706,
+   "f": "=roundup(21000/0.85,0)"
+  },
+  "T30": {
+   "v": "GI Pre-fabricated"
+  },
+  "O31": {
+   "v": 24,
+   "f": "=roundup(M31/0.85,0)"
+  },
+  "R31": {
+   "v": "BOS"
+  },
+  "S31": {
+   "v": 10981,
+   "f": "=sum(O18:O42)"
+  },
+  "T31": {
+   "v": "ACDB, DCDB, Switchgear. Wiring, Earthing, LA"
+  },
+  "O32": {
+   "v": 95,
+   "f": "=roundup(M32/0.85,0)"
+  },
+  "R32": {
+   "v": "INC and Transport"
+  },
+  "S32": {
+   "v": 30000
+  },
+  "T32": {
+   "v": "In Pune"
+  },
+  "O33": {
+   "v": 0,
+   "f": "=roundup(M33/0.85,0)"
+  },
+  "R33": {
+   "v": "Liaisoning "
+  },
+  "S33": {
+   "v": "Extra at Actual"
+  },
+  "T33": {
+   "v": "Depends on Location "
+  },
+  "O34": {
+   "v": 302,
+   "f": "=roundup(M34/0.85,0)"
+  },
+  "R34": {
+   "v": "Sub-total"
+  },
+  "S34": {
+   "v": 144394,
+   "f": "=Sum(S27:S32)"
+  },
+  "O35": {
+   "v": 71,
+   "f": "=roundup(M35/0.85,0)"
+  },
+  "R35": {
+   "v": "GST"
+  },
+  "S35": {
+   "v": 12851,
+   "f": "=round(S34*T35,0)"
+  },
+  "T35": {
+   "v": 0.089
+  },
+  "O36": {
+   "v": 0,
+   "f": "=roundup(M36/0.85,0)"
+  },
+  "R36": {
+   "v": "Total"
+  },
+  "S36": {
+   "v": 157245,
+   "f": "=S35+S34"
+  },
+  "O37": {
+   "v": 71,
+   "f": "=roundup(M37/0.85,0)"
+  },
+  "O38": {
+   "v": 236,
+   "f": "=roundup(M38/0.85,0)"
+  },
+  "O39": {
+   "v": 424,
+   "f": "=roundup(M39/0.85,0)"
+  },
+  "O40": {
+   "v": 106,
+   "f": "=roundup(M40/0.85,0)"
+  },
+  "O41": {
+   "v": 0,
+   "f": "=roundup(M41/0.85,0)"
+  },
+  "O42": {
+   "v": 0,
+   "f": "=roundup(M42/0.85,0)"
+  },
+  "O43": {
+   "v": 6099,
+   "f": "=roundup(M43/0.85,0)"
+  },
+  "Q43": {
+   "v": "Rafter "
+  },
+  "R43": {
+   "v": 2
+  },
+  "S43": {
+   "v": 2
+  },
+  "T43": {
+   "v": 4,
+   "f": "=S43*R43"
+  },
+  "O44": {
+   "v": 1313,
+   "f": "=roundup(M44/0.85,0)"
+  },
+  "Q44": {
+   "v": "Legs"
+  },
+  "R44": {
+   "v": 1
+  },
+  "S44": {
+   "v": 2
+  },
+  "T44": {
+   "v": 2,
+   "f": "=S44*R44"
+  },
+  "O45": {
+   "v": 942,
+   "f": "=roundup(M45/0.85,0)"
+  },
+  "R45": {
+   "v": 2
+  },
+  "S45": {
+   "v": 2
+  },
+  "T45": {
+   "v": 4,
+   "f": "=S45*R45"
+  },
+  "O46": {
+   "v": 0,
+   "f": "=roundup(M46/0.85,0)"
+  },
+  "Q46": {
+   "v": "Cross Bracing"
+  },
+  "R46": {
+   "v": 2
+  },
+  "S46": {
+   "v": 2
+  },
+  "T46": {
+   "v": 4,
+   "f": "=S46*R46"
+  },
+  "O47": {
+   "v": 0,
+   "f": "=roundup(M47/0.85,0)"
+  },
+  "T47": {
+   "v": 14,
+   "f": "=SUM(T43:T46)"
+  },
+  "O48": {
+   "v": 0,
+   "f": "=roundup(M48/0.85,0)"
+  },
+  "O49": {
+   "v": 142,
+   "f": "=roundup(M49/0.85,0)"
+  },
+  "O50": {
+   "v": 283,
+   "f": "=roundup(M50/0.85,0)"
+  },
+  "O51": {
+   "v": 0,
+   "f": "=roundup(M51/0.85,0)"
+  },
+  "O52": {
+   "v": 0,
+   "f": "=roundup(M52/0.85,0)"
+  },
+  "O53": {
+   "v": 69933,
+   "f": "=SUM(O14:O52)"
+  },
+  "P53": {
+   "v": 320000,
+   "f": "=320000"
+  },
+  "Q53": {
+   "v": "Revenue "
+  },
+  "O54": {
+   "v": 12495,
+   "f": "=roundup(M54/0.85,0)"
+  },
+  "P54": {
+   "v": 281195,
+   "f": "=ROUND(P53/1.138,0)"
+  },
+  "Q54": {
+   "v": "Net Revenue"
+  },
+  "O55": {
+   "v": 3496,
+   "f": "=roundup(M55/0.85,0)"
+  },
+  "O56": {
+   "v": 0,
+   "f": "=roundup(M56/0.85,0)"
+  },
+  "O57": {
+   "v": 85911,
+   "f": "=roundup(M57/0.85,0)"
+  },
+  "O58": {
+   "v": 1444,
+   "f": "=roundup(M58/0.85,0)"
+  },
+  "O60": {
+   "v": 87355,
+   "f": "=SUM(O57:O59)"
+  },
+  "P60": {
+   "v": 10620,
+   "f": "=M54"
+  },
+  "Q60": {
+   "v": "INC"
+  },
+  "R60": {
+   "v": 3.776738562,
+   "f": "=P60/$P$54*100"
+  },
+  "P61": {
+   "v": 0,
+   "f": "=M56"
+  },
+  "Q61": {
+   "v": "Liaisoning"
+  },
+  "R61": {
+   "v": 0,
+   "f": "=P61/$P$54*100"
+  },
+  "P62": {
+   "v": 62000,
+   "f": "=round(M53+M55,-3)"
+  },
+  "Q62": {
+   "v": "COGS"
+  },
+  "R62": {
+   "v": 22.0487562,
+   "f": "=P62/$P$54*100"
+  },
+  "R63": {
+   "v": 0,
+   "f": "=P63/$P$54*100"
+  },
+  "P64": {
+   "v": 12000
+  },
+  "Q64": {
+   "v": "Opetating Expenses"
+  },
+  "R64": {
+   "v": 4.2675012,
+   "f": "=P64/$P$54*100"
+  },
+  "P65": {
+   "v": 6000,
+   "f": "=6000"
+  },
+  "Q65": {
+   "v": "CAC"
+  },
+  "R65": {
+   "v": 2.1337506,
+   "f": "=P65/$P$54*100"
+  },
+  "P66": {
+   "v": 190575,
+   "f": "=P54-P60-P61-P62-P63-P64-P65"
+  },
+  "Q66": {
+   "v": "Profit"
+  },
+  "R66": {
+   "v": 67.77325344,
+   "f": "=P66/$P$54*100"
+  }
+ }
+}

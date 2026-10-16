@@ -3,69 +3,43 @@
 // completely independent — separate sections, separate sheet, never shares a
 // template with Residential. Used by both server.ts (xlsx generation) and the
 // Google Sheets export flow (commercialGoogleSheetsExport.ts).
-import { WorksheetCell, WorksheetModel } from "../../worksheetModel.js";
-import { CommercialBillData } from "./types.js";
+import { WorksheetCell, WorksheetModel } from "../../worksheetModel";
+import { CommercialBillData } from "./types";
 import {
   computeBillingStats,
   detectTodMode,
   computeTodUtilisation,
   computeMeterDerived,
   reconcileCharges,
-  computeSizingPipeline,
   computeValidationChecks,
-} from "./commercialCalculations.js";
+  type SizingSettings,
+} from "./commercialCalculations";
+import { analyseCommercial } from "./consumptionSizing";
 
-export interface CommercialSizingInputs {
-  panelWatt: number;
-  sunHours: number;
-  buffer: number;
-  systemCost: number;
-}
+/** Sizing settings, as shown on screen (yield, offset and the optional margin). */
+export type CommercialSizingInputs = SizingSettings;
 
+// `startRow` lets Batch Bill Analysis stack many bills onto ONE worksheet by
+// calling this same builder repeatedly at increasing offsets. Default 1 keeps
+// the single-bill xlsx and Google Sheets exports byte-identical to before.
 export function buildCommercialWorksheetModel(
   data: CommercialBillData,
-  sizing: CommercialSizingInputs
+  sizing: CommercialSizingInputs,
+  startRow = 1
 ): WorksheetModel {
   const cells: WorksheetCell[] = [];
   const set = (ref: string, value: string | number | null) => cells.push({ ref, value });
 
   const todMode = detectTodMode(data.connectionType);
   const stats = computeBillingStats(data.billingHistory, data.fixedCharges);
-  const tod = computeTodUtilisation(data.todSlots, todMode);
-  const meter = computeMeterDerived(
-    data.prevReading,
-    data.currReading,
-    data.multiplyingFactor,
-    data.kvahReading,
-    data.recordedMD,
-    data.contractDemand
-  );
-  const recon = reconcileCharges({
-    energyCharges: data.energyCharges,
-    demandCharges: data.demandCharges,
-    fac: data.fac,
-    ed: data.ed,
-    tose: data.tose,
-    wheelingCharges: data.wheelingCharges,
-    delayedPayment: data.delayedPayment,
-    arrears: data.arrears,
-    creditAdjustment: data.creditAdjustment,
-    otherCharges: data.otherCharges,
-    billAmount: data.billAmount,
-  });
-  const pipeline = computeSizingPipeline(
-    stats.avgUnits,
-    stats.avgUnitCost,
-    stats.avgUnitCostRoundUp,
-    tod.bufferedFraction,
-    sizing.panelWatt,
-    sizing.sunHours,
-    sizing.buffer,
-    sizing.systemCost
-  );
-  const checks = computeValidationChecks(stats, tod, meter, recon);
+  const tod = computeTodUtilisation(data.todSlots);
+  const meter = computeMeterDerived(data);
+  const recon = reconcileCharges(data);
+  // Sized on this bill's own active energy (kWh) — see consumptionSizing.ts.
+  const { pipeline, baseline, sanctioned, connected, energyRate } = analyseCommercial([{ data, sourceId: data.filename || "bill" }], sizing);
+  const checks = computeValidationChecks(stats, tod, meter, recon, data);
 
-  let row = 1;
+  let row = startRow;
   const blank = () => { row += 1; };
   const heading = (text: string) => { set(`A${row}`, text); row += 1; };
   const kv = (label: string, value: string | number | null) => { set(`A${row}`, label); set(`B${row}`, value); row += 1; };
@@ -83,29 +57,46 @@ export function buildCommercialWorksheetModel(
 
   // ── Section 2: Technical Parameters ─────────────────────────────────────
   heading("TECHNICAL PARAMETERS");
-  kv("Sanctioned Load (kW)", num(data.sanctionedLoad));
+  kv(`Sanctioned Load (${data.sanctionedLoadUnit || "unit not stated"})`, num(data.sanctionedLoad));
+  kv("Sanctioned Load (kW)", sanctioned.kw);
+  kv("Sanctioned Load conversion", sanctioned.method ?? sanctioned.warning);
+  kv(`Connected Load (${data.connectedLoadUnit || "unit not stated"})`, num(data.connectedLoad));
+  kv("Connected Load (kW)", connected.kw);
   kv("Contract Demand (KVA)", num(data.contractDemand));
-  kv("Fixed Charges (Rs)", num(data.fixedCharges));
   kv("ED Code", data.edCode || null);
   kv("Security Deposit (Rs)", num(data.securityDeposit));
   kv("Meter Number", data.meterNo || null);
+  kv("Existing Solar Installed", data.hasSolar ? "Yes" : "No");
+  kv("Existing Solar Capacity (kW, nameplate)", num(data.solarCapacityKw));
+  kv("Existing Solar Generation Signal (units)", num(data.solarGenerationUnits));
+  kv("Existing Solar Source Field", data.solarSourceField || null);
   blank();
 
   // ── Section 3: Meter Readings ────────────────────────────────────────────
   heading("METER READINGS");
-  kv("Previous Reading (kWh)", num(data.prevReading));
-  kv("Current Reading (kWh)", num(data.currReading));
+  kv("KWH register, previous", num(data.prevReading));
+  kv("KWH register, current", num(data.currReading));
+  kv("KVAH register, previous", num(data.kvahPrevReading));
+  kv("KVAH register, current", num(data.kvahCurrReading));
   kv("Multiplying Factor", num(data.multiplyingFactor));
-  kv("Assessed Units (kWh)", meter.assessedUnits);
-  kv("kVAh Reading", num(data.kvahReading));
-  kv("Power Factor", meter.powerFactor !== null ? Number(meter.powerFactor.toFixed(4)) : null);
-  kv("Recorded MD (KVA)", num(data.recordedMD));
-  kv("Billed Demand (KVA)", meter.billedDemand !== null ? Number(meter.billedDemand.toFixed(1)) : null);
+  kv("Check: (KWH curr - prev) x MF (kWh)", meter.assessedUnits);
+  kv("Check: (KVAH curr - prev) x MF (kVAh)", meter.kvahFromRegisters);
+  kv("Active energy consumption, this period (kWh)", num(data.activeKwh));
+  kv("Apparent energy consumption, this period (kVAh)", num(data.kvahReading));
+  kv("Reading Period", data.readingFrom && data.readingTo ? `${data.readingFrom} to ${data.readingTo}` : null);
+  kv("Avg. / assessed PF (as printed)", num(data.avgPowerFactor));
+  kv("Billed PF (as printed)", num(data.billedPowerFactor));
+  kv("Recorded MD (kW)", num(data.recordedMdKw));
+  kv("Recorded MD (kVA)", num(data.recordedMD));
+  kv(`Billed Demand (as printed${data.billedDemandUnit ? `, ${data.billedDemandUnit}` : ""})`, num(data.billedDemand));
+  kv("75% of contract demand (kVA, screening only - tariff rule not verified)", meter.demandFloorKva);
   blank();
 
-  // ── Section 4: Billing History (12 months) ──────────────────────────────
-  heading("BILLING HISTORY (12 MONTHS)");
-  set(`A${row}`, "Sr.No"); set(`B${row}`, "Month"); set(`C${row}`, "Units (kWh)"); set(`D${row}`, "Bill Amount (Rs)"); set(`E${row}`, "Unit Cost (Rs/kWh)"); set(`F${row}`, "Status");
+  // ── Section 4: Billing History (every month the bill prints) ───────────
+  heading("BILLING HISTORY");
+  const hu = data.billingHistoryUnit === "unknown" ? "unit unknown" : data.billingHistoryUnit;
+  kv("History units (reference only, not used for sizing)", hu);
+  set(`A${row}`, "Sr.No"); set(`B${row}`, "Month"); set(`C${row}`, `Units (${hu})`); set(`D${row}`, "Bill Amount (Rs)"); set(`E${row}`, "Bill / units (all-in ratio, not an energy rate)"); set(`F${row}`, "Status");
   row += 1;
   data.billingHistory.forEach((r, idx) => {
     const flags = stats.rows[idx];
@@ -120,15 +111,16 @@ export function buildCommercialWorksheetModel(
   });
   kv("Average Units (valid months)", stats.avgUnits > 0 ? Number(stats.avgUnits.toFixed(2)) : null);
   kv("Average Bill Amount", stats.avgBillAmount > 0 ? Number(stats.avgBillAmount.toFixed(2)) : null);
-  kv("Average Unit Cost", stats.avgUnitCost > 0 ? Number(stats.avgUnitCost.toFixed(4)) : null);
-  kv("Average Unit Cost ROUNDUP(0.5)", stats.avgUnitCostRoundUp > 0 ? Number(stats.avgUnitCostRoundUp.toFixed(2)) : null);
-  kv("Valid Months", stats.validCount);
+  kv("Average bill / units (all-in ratio)", stats.avgUnitCost > 0 ? Number(stats.avgUnitCost.toFixed(4)) : null);
+  kv("History months with units", stats.validCount);
   blank();
 
   // ── Section 5: Charge Components ────────────────────────────────────────
   heading("CHARGE COMPONENTS");
   kv("Energy Charges (Rs)", num(data.energyCharges));
+  kv("TOD Tariff EC (Rs, signed)", num(data.todCharges));
   kv("Demand Charges (Rs)", num(data.demandCharges));
+  kv("Fixed Charges (Rs, only if printed)", num(data.fixedCharges));
   kv("Fuel Adj. Charge / FAC (Rs)", num(data.fac));
   kv("Electricity Duty / ED (Rs)", num(data.ed));
   kv("Tax on Sale / ToSE (Rs)", num(data.tose));
@@ -137,7 +129,9 @@ export function buildCommercialWorksheetModel(
   kv("Arrears (Rs)", num(data.arrears));
   kv("Credit Adjustment (Rs)", num(data.creditAdjustment));
   kv("Other Charges (Rs)", num(data.otherCharges));
-  kv("Reconstructed Total (Rs)", recon.reconstructedTotal);
+  kv("Sum of this period's charges (Rs)", recon.currentCharges);
+  kv("Total Current Bill, printed (Rs)", recon.printedCurrentTotal > 0 ? recon.printedCurrentTotal : null);
+  kv("Reconstructed Total, rounded to Rs 10 (Rs)", recon.reconstructedTotal);
   kv("Printed Bill Amount (Rs)", recon.printedAmount > 0 ? recon.printedAmount : null);
   kv("Reconciliation", recon.printedAmount > 0 ? (recon.withinTolerance ? `OK (diff Rs ${recon.diff})` : `MISMATCH (diff Rs ${recon.diff})`) : null);
   blank();
@@ -158,24 +152,25 @@ export function buildCommercialWorksheetModel(
     row += 1;
   });
   kv("Total Units", tod.totalUnits > 0 ? tod.totalUnits : null);
-  kv("Utilisable Fraction (raw)", tod.utilisableFraction > 0 ? Number((tod.utilisableFraction * 100).toFixed(4)) : null);
-  kv(todMode === "LT" ? "Utilisable Fraction (+10% buffer)" : "Utilisable Fraction (no buffer)", tod.bufferedFraction > 0 ? Number((tod.bufferedFraction * 100).toFixed(4)) : null);
+  kv("06-17 h tariff-band share (%, proxy, low confidence - not a measured daytime load)", tod.utilisableFraction > 0 ? Number((tod.utilisableFraction * 100).toFixed(4)) : null);
   blank();
 
   // ── Section 7: Solar Sizing Pipeline ────────────────────────────────────
   heading("SOLAR SIZING PIPELINE");
   kv("Panel Wattage (W)", sizing.panelWatt);
-  kv("Sun Hours (hrs/yr)", sizing.sunHours);
-  kv("Buffer Multiplier", sizing.buffer);
-  kv("STEP 1 - Avg Units (kWh/mo)", stats.avgUnits > 0 ? Number(stats.avgUnits.toFixed(2)) : null);
-  kv("STEP 2 - Solar Capacity Raw (kWp)", pipeline.solarCapacityRawKwp > 0 ? Number(pipeline.solarCapacityRawKwp.toFixed(2)) : null);
+  kv("Assumed annual specific yield (kWh/kWp/yr)", sizing.specificYield);
+  kv("Energy offset target (%)", sizing.offsetPct);
+  kv("Additional sizing margin (%)", sizing.marginPct);
+  kv("STEP 1 - Active energy used (kWh)", baseline ? baseline.totalKwh : null);
+  kv("STEP 1 - Periods / reading days", baseline ? `${baseline.periods} / ${baseline.totalDays ?? "dates missing"}` : null);
+  kv(`STEP 1 - Annual active energy (kWh, ${baseline?.annualBasis ?? "-"})`, baseline ? Number(baseline.annualKwh.toFixed(0)) : null);
+  kv("STEP 2 - Theoretical capacity (kWp, before margin)", pipeline.theoreticalKwp > 0 ? Number(pipeline.theoreticalKwp.toFixed(2)) : null);
+  kv("STEP 2 - Added by sizing margin (kWp)", pipeline.marginKwp > 0 ? Number(pipeline.marginKwp.toFixed(2)) : 0);
   kv("STEP 3 - Full Panels", pipeline.fullPanels > 0 ? pipeline.fullPanels : null);
   kv("STEP 4 - Full kWp (actual)", pipeline.fullKwp > 0 ? Number(pipeline.fullKwp.toFixed(1)) : null);
-  kv("STEP 5 - TOD Utilisable Fraction", tod.bufferedFraction > 0 ? Number((tod.bufferedFraction * 100).toFixed(2)) : null);
-  kv("STEP 6 - TOD Solar Capacity (kWp)", pipeline.todSolarCapacityKwp > 0 ? Number(pipeline.todSolarCapacityKwp.toFixed(2)) : null);
-  kv("STEP 7 - TOD Panels", pipeline.todPanels > 0 ? pipeline.todPanels : null);
-  kv("STEP 8 - TOD kWp (actual)", pipeline.todKwp > 0 ? Number(pipeline.todKwp.toFixed(1)) : null);
-  kv("STEP 9 - Solar Generation/Year (kWh)", pipeline.solarGenPerYearKwh > 0 ? Number(pipeline.solarGenPerYearKwh.toFixed(0)) : null);
+  kv("STEP 5 - Solar Generation/Year at the full size (kWh)", pipeline.solarGenPerYearKwh > 0 ? Number(pipeline.solarGenPerYearKwh.toFixed(0)) : null);
+  kv("TOD proxy - tariff-band share (%)", tod.utilisableFraction > 0 ? Number((tod.utilisableFraction * 100).toFixed(2)) : null);
+  kv("TOD proxy - capacity (kWp, low confidence)", pipeline.todKwp > 0 ? Number(pipeline.todKwp.toFixed(1)) : null);
   blank();
 
   // ── Section 8: Validation Results ───────────────────────────────────────
@@ -189,16 +184,20 @@ export function buildCommercialWorksheetModel(
 
   // ── Section 9: Recommendations / Savings & Payback ─────────────────────
   heading("SAVINGS ANALYSIS & RECOMMENDATIONS");
-  kv("Full Solar Capacity (kWp)", pipeline.fullKwp > 0 ? Number(pipeline.fullKwp.toFixed(1)) : null);
-  kv("TOD-Adjusted Capacity (kWp)", pipeline.todKwp > 0 ? Number(pipeline.todKwp.toFixed(1)) : null);
-  kv("Annual Saving @ Avg Rate (Rs)", pipeline.annualSavingAvgRate > 0 ? Number(pipeline.annualSavingAvgRate.toFixed(0)) : null);
+  kv("Theoretical energy-based capacity (kWp)", pipeline.fullKwp > 0 ? Number(pipeline.fullKwp.toFixed(1)) : null);
+  kv("TOD tariff-band proxy capacity (kWp, low confidence)", pipeline.todKwp > 0 ? Number(pipeline.todKwp.toFixed(1)) : null);
+  kv("Note", "Preliminary only, not an installable capacity: confirm daytime load, site yield, roof area and the utility's interconnection/export limits before quoting.");
+  kv("Energy rate (Rs/kWh) = variable charges / active kWh", energyRate > 0 ? Number(energyRate.toFixed(4)) : null);
+  kv("Annual Saving @ Energy Rate (Rs)", pipeline.annualSavingAvgRate > 0 ? Number(pipeline.annualSavingAvgRate.toFixed(0)) : null);
   kv("Annual Saving @ ROUNDUP Rate (Rs)", pipeline.annualSavingRoundUpRate > 0 ? Number(pipeline.annualSavingRoundUpRate.toFixed(0)) : null);
-  kv("System Cost (Rs)", sizing.systemCost > 0 ? sizing.systemCost : null);
+  kv("System Cost (Rs)", typeof sizing.systemCost === "number" && sizing.systemCost > 0 ? sizing.systemCost : null);
   kv("Simple Payback (Years)", pipeline.simplePaybackYears !== null ? Number(pipeline.simplePaybackYears.toFixed(1)) : null);
 
   return {
     sheetTitle: (data.consumerNo || "Commercial").slice(0, 31),
     cells,
     colWidths: [34, 20, 16, 16, 16, 14],
+    // `row` has already advanced past the final written line.
+    endRow: row - 1,
   };
 }
