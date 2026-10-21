@@ -43,10 +43,13 @@ const RAW = {
 };
 const bill = { ...sanitizeCommercialData(RAW), filename: "jul.pdf" };
 const a = analyseCommercial([{ data: bill, sourceId: "jul.pdf" }], DEFAULT_SIZING);
+// The meter-reading pipeline without margin — still selectable on screen; sections 9 and 14 check its arithmetic.
+const METER = { ...DEFAULT_SIZING, baseline: "meter" as const, marginPct: 0 };
+const m = analyseCommercial([{ data: bill, sourceId: "jul.pdf" }], METER);
 const meter = computeMeterDerived(bill);
 const recon = reconcileCharges(bill);
 const tod = computeTodUtilisation(bill.todSlots);
-const checks = computeValidationChecks(computeBillingStats(bill.billingHistory, bill.fixedCharges), tod, meter, recon, bill);
+const checks = computeValidationChecks(computeBillingStats(bill.billingHistory, bill.fixedCharges), tod, meter, recon, bill, a.baseline?.source === "history");
 const labels = checks.map((c) => c.label);
 const statusOf = (prefix: string) => checks.find((c) => c.label.startsWith(prefix))?.status;
 
@@ -93,16 +96,17 @@ check("8. a TOD rebate keeps its sign", sanitizeCommercialData({ ...RAW, todChar
 
 // 9. Dates → actual-day annualisation.
 check("9. reading dates as ISO", [bill.readingFrom, bill.readingTo], ["2026-06-30", "2026-07-31"]);
-check("9. 31 days, annual = 47,408 × 365 ÷ 31 ≈ 558,191", [a.baseline!.totalDays, Math.round(a.baseline!.annualKwh)], [31, 558191]);
-check("9. at 1,400 kWh/kWp/yr, 100 % → ≈398.7 kWp theoretical", r2(a.pipeline.theoreticalKwp), r2((47408 * 365) / 31 / 1400));
-check("9. ≈398.7", Math.round(a.pipeline.theoreticalKwp * 10) / 10, 398.7);
+check("9. meter option: 31 days, annual = 47,408 × 365 ÷ 31 ≈ 558,191", [m.baseline!.totalDays, Math.round(m.baseline!.annualKwh)], [31, 558191]);
+check("9. meter option at 1,400 kWh/kWp/yr, 100 % → ≈398.7 kWp theoretical", r2(m.pipeline.theoreticalKwp), r2((47408 * 365) / 31 / 1400));
+check("9. ≈398.7", Math.round(m.pipeline.theoreticalKwp * 10) / 10, 398.7);
 
-// 10. kVAh history is reference only.
-check("10. baseline = this bill's kWh only", [a.baseline!.periods, a.baseline!.totalKwh], [1, 47408]);
-check("10. history months are history-only, never used", a.history!.months.filter((m) => m.status !== "used").every((m) => m.status === "history-only"), true);
-check("10. no history month counted as a valid kWh period", a.history!.months.filter((m) => m.status === "used").length, 1);
-check("10. history labelled reference-only", labels.some((l) => l.includes("HISTORY MONTHS (kVAh) · REFERENCE ONLY")), true);
-check("10. outlier disclosed", labels.includes("OUTLIER IN HISTORY — REVIEW (SHOWN, NOT SIZED)"), true);
+// 10. Office workbook (2026-10-21): the printed history months are the sizing baseline, as printed (billed kVAh).
+const months = bill.billingHistory.map((r) => Number(r.units)).filter((u) => u > 0);
+check("10. default baseline = the printed history months", [a.baseline!.source, a.baseline!.periods], ["history", months.length]);
+check("10. average = plain average of the printed months (outlier kept)", r2(a.baseline!.avgMonthlyKwh), r2(months.reduce((x, y) => x + y, 0) / months.length));
+check("10. meter months are not mixed in", m.history!.months.filter((x) => x.status === "used").length, 1);
+check("10. history labelled as the sizing baseline", labels.some((l) => l.includes("HISTORY MONTHS (kVAh) · SIZING BASELINE")), true);
+check("10. outlier disclosed and kept", labels.includes("OUTLIER IN HISTORY — REVIEW (KEPT IN THE AVERAGE)"), true);
 
 // 11. Energy rate = variable charges ÷ active kWh — not a bill total ÷ kVAh.
 const variable = 387841.12 + 9888.29 + 17721.2 + 76960.64 + 39293.34 + 13222.37;
@@ -110,23 +114,25 @@ check("11. rate = (energy + TOD + FAC + wheeling + ED + ToSE) ÷ kWh", r2(a.ener
 check("11. a bill whose charges don't add up is left out of the rate", analyseCommercial([{ data: { ...bill, todCharges: -20587.78 }, sourceId: "x" }], DEFAULT_SIZING).energyRate, 0);
 check("11. saving uses that rate", r2(a.pipeline.annualSavingAvgRate), r2(a.pipeline.solarGenPerYearKwh * a.energyRate));
 
-// 12–13. No hidden multiplier; theoretical and TOD proxy stay separate.
-check("12. 0 % margin: raw size = theoretical", [a.pipeline.marginKwp, a.pipeline.solarCapacityRawKwp === a.pipeline.theoreticalKwp], [0, true]);
-check("12. TOD proxy = B+C share 43.01 %, no ×1.1", r2(tod.utilisableFraction * 100), r2(((5685 + 16094) / 50632) * 100));
-check("12. TOD proxy capacity = theoretical × share, unbuffered", a.pipeline.todSolarCapacityKwp, tod.utilisableFraction * a.pipeline.theoreticalKwp);
-check("12. TOD proxy flagged low confidence", statusOf("TOD BAND PROXY"), "warn");
-check("13. primary size 665 × 600 W = 399 kWp; proxy 171.6 kWp kept apart", [a.pipeline.fullKwp, a.pipeline.todKwp], [399, 171.6]);
+// 12–13. The workbook formula: avg × 12 × 1.1 ÷ 1400, × (B+C share × 1.1), whole panels.
+check("12. default 10 % margin, shown", r2(a.pipeline.marginKwp), r2(a.pipeline.theoreticalKwp * 0.1));
+check("12. TOD share = B+C 43.01 %", r2(tod.utilisableFraction * 100), r2(((5685 + 16094) / 50632) * 100));
+check("12. TOD consideration = share × 1.1", r2(a.pipeline.todConsideration), r2(tod.utilisableFraction * 1.1));
+check("12. TOD capacity = consideration × calculated capacity", r2(a.pipeline.todSolarCapacityKwp), r2(tod.utilisableFraction * 1.1 * a.pipeline.solarCapacityRawKwp));
+check("12. TOD share used for sizing (not a warning)", statusOf("TOD SHARE"), "ok");
+const panels = Math.round(((tod.utilisableFraction * 1.1 * (a.baseline!.avgMonthlyKwh * 12 * 1.1)) / 1400 / 600) * 1000);
+check("13. recommended = TOD-based, whole 600 W panels", [a.pipeline.recommendedBasis, a.pipeline.recommendedPanels, a.pipeline.recommendedKwp], ["tod", panels, (panels * 600) / 1000]);
 const saved = validateBillAnalysis({ category: "commercial", data: { data: bill, ...DEFAULT_SIZING } }) as any;
-check("13. saved recommendation = theoretical size, never the TOD proxy", saved.value.recommended_kw, 399);
+check("13. saved recommendation = the recommended size", saved.value.recommended_kw, a.pipeline.recommendedKwp);
 check("13. saved sanctioned load in kW", saved.value.sanctioned_load_kw, 149.2);
 check("13. new fields survive the save", [saved.value.data.data.kvahCurrReading, saved.value.data.data.billedDemand, saved.value.data.data.todCharges, saved.value.data.data.avgPowerFactor], [13007.89, 75, 9888.29, 0.978]);
 
 // 14. Edits recalculate — Single bill (one bill) and Several bills (same engine).
-const edited = analyseCommercial([{ data: { ...bill, activeKwh: 40000 }, sourceId: "jul.pdf" }], DEFAULT_SIZING);
+const edited = analyseCommercial([{ data: { ...bill, activeKwh: 40000 }, sourceId: "jul.pdf" }], METER);
 check("14. single: edited kWh re-sizes", Math.round(edited.baseline!.annualKwh), Math.round((40000 * 365) / 31));
 const jun = { ...bill, consumerNo: "100000000009", billingMonth: "Jun-2026", activeKwh: 48248, kvahReading: 53557, readingFrom: "2026-05-31", readingTo: "2026-06-30", filename: "jun.pdf" };
-const apart = analyseCommercial([{ data: bill, sourceId: "jul.pdf" }, { data: jun, sourceId: "jun.pdf" }], DEFAULT_SIZING);
-const joined = analyseCommercial([{ data: bill, sourceId: "jul.pdf" }, { data: { ...jun, consumerNo: bill.consumerNo }, sourceId: "jun.pdf" }], DEFAULT_SIZING);
+const apart = analyseCommercial([{ data: bill, sourceId: "jul.pdf" }, { data: jun, sourceId: "jun.pdf" }], METER);
+const joined = analyseCommercial([{ data: bill, sourceId: "jul.pdf" }, { data: { ...jun, consumerNo: bill.consumerNo }, sourceId: "jun.pdf" }], METER);
 check("14. several: a misread consumer number keeps bills apart", apart.histories.length, 2);
 check("14. several: correcting it consolidates and re-sizes", [joined.histories.length, joined.baseline!.periods, joined.baseline!.totalDays], [1, 2, 61]);
 

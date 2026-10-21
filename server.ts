@@ -185,22 +185,10 @@ function sanitizeExtractedData(raw: any): any {
     });
   }
 
-  // The historical bar-chart/table on most MSEDCL bills covers the months
-  // BEFORE the current bill — it does not include the bill's own period.
-  // Without merging the current reading in, the freshest month silently
-  // disappears from the trailing-history table. Current-bill values are also
-  // the most authoritative reading for that month (straight off the bill
-  // body, not a chart), so they win over any chart entry for the same month.
-  const currentMonthLabel = typeof raw.billingMonth === "string" ? raw.billingMonth.trim() : "";
-  if (currentMonthLabel && currentUnits > 0) {
-    byMonth.set(currentMonthLabel, {
-      month: currentMonthLabel,
-      consumption: currentUnits,
-      amount: currentBillAmount,
-      unitCost: calculateUnitCost(currentUnits, effectiveSlabs),
-    });
-  }
-
+  // Billing history = exactly the months printed on the bill. The bill's own
+  // month is NOT merged in (decided 2026-10-21, same rule as C&I — the office
+  // workbook averages the printed months only); its figures stay in
+  // currentUnits / currentBillAmount.
   let billingHistory = Array.from(byMonth.values());
 
   // Sort oldest → newest whenever every month label is parseable; otherwise
@@ -211,11 +199,8 @@ function sanitizeExtractedData(raw: any): any {
     billingHistory = keyed.map((k) => k.row);
   }
 
-  // The worksheet template has exactly 12 history rows — keep the most
-  // recent 12 (including the current bill), dropping anything older.
-  if (billingHistory.length > 12) {
-    billingHistory = billingHistory.slice(billingHistory.length - 12);
-  }
+  // Every printed month is kept (13 on many bills) — the worksheet grows to
+  // fit and averages them all, as the office workbook does.
 
   // Last-resort connectionType: only built from OTHER fields this same
   // extraction already found on the bill (tariffCategory + phaseType) — never
@@ -267,6 +252,9 @@ Analyze this MSEDCL (Maharashtra State Electricity Distribution Co. Ltd.) Indian
 Extract as many details as possible, translating Marathi terms to standard English.
 This bill may be ANY MSEDCL format/layout (residential, commercial, industrial, HT, LT) — never assume a fixed
 layout or fixed values. Every numeric field below varies bill-to-bill and must be read fresh from THIS document.
+The document may have several pages or photos — e.g. the front and back of the SAME bill. They are ONE bill:
+read every page, take each field from wherever it is printed, never add up or repeat a value because it appears
+on more than one page, and if two pages disagree use the clearest, most specific printing.
 
 CRITICAL — TWO FIELDS THAT MUST NEVER BE LEFT EMPTY (highest priority in this entire task):
 - Fixed Charges ("स्थिर आकार"): on nearly every MSEDCL bill this sits inside a two-column charges breakdown
@@ -668,9 +656,8 @@ app.post("/api/extract", requirePermission("bill_analysis.create"), extractLimit
             responseSchema: MSEDCL_RESPONSE_SCHEMA,
             // temperature 0 => deterministic, most-likely reading of digits/labels (accuracy over creativity)
             temperature: 0,
-            // A small fixed thinking budget keeps reasoning for tricky table layouts while
-            // avoiding the open-ended (and much slower) dynamic thinking budget on flash.
-            thinkingConfig: { thinkingBudget: 512 },
+            // No thinkingConfig — see GEMINI_MODEL in geminiExtraction.ts (a
+            // thinkingBudget made Gemini 3 think for 63k tokens / 144 s).
           },
         })
     );
@@ -841,9 +828,9 @@ app.post("/api/download-excel", requirePermission("bill_analysis.view"), (req, r
 
     // Create manual Sheet layout cell-by-cell
     const ws: any = {};
-    ws["!ref"] = "A1:F31"; // Sets active grid region boundaries
-
     const model = buildWorksheetModel(slot1Data, solarPanelUsed);
+    // Height follows the number of printed months (13+ pushes the totals down).
+    ws["!ref"] = `A1:F${Math.max(31, ...model.cells.map((c) => Number(c.ref.replace(/\D/g, "")) || 1))}`;
 
     for (const cell of model.cells) {
       if (cell.formula) {

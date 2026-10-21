@@ -6,9 +6,9 @@
 import { WorksheetCell, WorksheetModel } from "../../worksheetModel";
 import { CommercialBillData } from "./types";
 import {
-  computeBillingStats,
+  computeBillingStats, monthlyFixedOf,
   detectTodMode,
-  computeTodUtilisation,
+  computeTodUtilisation, todTotalsOf,
   computeMeterDerived,
   reconcileCharges,
   computeValidationChecks,
@@ -31,11 +31,11 @@ export function buildCommercialWorksheetModel(
   const set = (ref: string, value: string | number | null) => cells.push({ ref, value });
 
   const todMode = detectTodMode(data.connectionType);
-  const stats = computeBillingStats(data.billingHistory, data.fixedCharges);
-  const tod = computeTodUtilisation(data.todSlots);
+  const stats = computeBillingStats(data.billingHistory, monthlyFixedOf(data));
+  const tod = computeTodUtilisation(data.todSlots, undefined, todTotalsOf(data));
   const meter = computeMeterDerived(data);
   const recon = reconcileCharges(data);
-  // Sized on this bill's own active energy (kWh) — see consumptionSizing.ts.
+  // Sized on the chosen kWh baseline (this bill's meter, or kWh billing history) — see consumptionSizing.ts.
   const { pipeline, baseline, sanctioned, connected, energyRate } = analyseCommercial([{ data, sourceId: data.filename || "bill" }], sizing);
   const checks = computeValidationChecks(stats, tod, meter, recon, data);
 
@@ -120,7 +120,7 @@ export function buildCommercialWorksheetModel(
   kv("Energy Charges (Rs)", num(data.energyCharges));
   kv("TOD Tariff EC (Rs, signed)", num(data.todCharges));
   kv("Demand Charges (Rs)", num(data.demandCharges));
-  kv("Fixed Charges (Rs, only if printed)", num(data.fixedCharges));
+  kv("Fixed Charges (Rs) — Demand Charges + any Fixed Charges line", num(monthlyFixedOf(data)));
   kv("Fuel Adj. Charge / FAC (Rs)", num(data.fac));
   kv("Electricity Duty / ED (Rs)", num(data.ed));
   kv("Tax on Sale / ToSE (Rs)", num(data.tose));
@@ -160,17 +160,22 @@ export function buildCommercialWorksheetModel(
   kv("Panel Wattage (W)", sizing.panelWatt);
   kv("Assumed annual specific yield (kWh/kWp/yr)", sizing.specificYield);
   kv("Energy offset target (%)", sizing.offsetPct);
-  kv("Additional sizing margin (%)", sizing.marginPct);
-  kv("STEP 1 - Active energy used (kWh)", baseline ? baseline.totalKwh : null);
+  kv("Sizing margin (%)", sizing.marginPct);
+  kv("STEP 1 - Consumption baseline", baseline ? (baseline.source === "history" ? `Billing-history average (${baseline.periods} printed months, as printed)` : "Meter reading (active kWh)") : null);
+  kv("STEP 1 - Average units / month", baseline ? Number(baseline.avgMonthlyKwh.toFixed(2)) : null);
+  kv("STEP 1 - Units used (total)", baseline ? baseline.totalKwh : null);
   kv("STEP 1 - Periods / reading days", baseline ? `${baseline.periods} / ${baseline.totalDays ?? "dates missing"}` : null);
-  kv(`STEP 1 - Annual active energy (kWh, ${baseline?.annualBasis ?? "-"})`, baseline ? Number(baseline.annualKwh.toFixed(0)) : null);
+  kv(`STEP 1 - Annual units (${baseline?.annualBasis ?? "-"})`, baseline ? Number(baseline.annualKwh.toFixed(0)) : null);
   kv("STEP 2 - Theoretical capacity (kWp, before margin)", pipeline.theoreticalKwp > 0 ? Number(pipeline.theoreticalKwp.toFixed(2)) : null);
   kv("STEP 2 - Added by sizing margin (kWp)", pipeline.marginKwp > 0 ? Number(pipeline.marginKwp.toFixed(2)) : 0);
-  kv("STEP 3 - Full Panels", pipeline.fullPanels > 0 ? pipeline.fullPanels : null);
-  kv("STEP 4 - Full kWp (actual)", pipeline.fullKwp > 0 ? Number(pipeline.fullKwp.toFixed(1)) : null);
-  kv("STEP 5 - Solar Generation/Year at the full size (kWh)", pipeline.solarGenPerYearKwh > 0 ? Number(pipeline.solarGenPerYearKwh.toFixed(0)) : null);
-  kv("TOD proxy - tariff-band share (%)", tod.utilisableFraction > 0 ? Number((tod.utilisableFraction * 100).toFixed(2)) : null);
-  kv("TOD proxy - capacity (kWp, low confidence)", pipeline.todKwp > 0 ? Number(pipeline.todKwp.toFixed(1)) : null);
+  kv("STEP 3 - Calculated Solar Capacity (kWp) = avg x 12 x (1 + margin) / yield", pipeline.solarCapacityRawKwp > 0 ? Number(pipeline.solarCapacityRawKwp.toFixed(3)) : null);
+  kv("STEP 4 - TOD share (B+C)", tod.utilisableFraction > 0 ? Number(tod.utilisableFraction.toFixed(4)) : null);
+  kv("STEP 4 - TOD Consideration (share +10%)", pipeline.todConsideration > 0 ? Number(pipeline.todConsideration.toFixed(4)) : null);
+  kv("STEP 5 - TOD Solar Capacity (kWp) = TOD consideration x calculated", pipeline.todSolarCapacityKwp > 0 ? Number(pipeline.todSolarCapacityKwp.toFixed(3)) : null);
+  kv("RECOMMENDED - Number of Panels", pipeline.recommendedPanels > 0 ? pipeline.recommendedPanels : null);
+  kv("RECOMMENDED - Actual Solar Capacity (kWp)", pipeline.recommendedKwp > 0 ? Number(pipeline.recommendedKwp.toFixed(1)) : null);
+  kv("Basis", pipeline.recommendedPanels > 0 ? (pipeline.recommendedBasis === "tod" ? "TOD consideration x calculated capacity" : "Full calculated capacity (no complete TOD table)") : null);
+  kv("Solar Generation/Year at the recommended size (kWh)", pipeline.solarGenPerYearKwh > 0 ? Number(pipeline.solarGenPerYearKwh.toFixed(0)) : null);
   blank();
 
   // ── Section 8: Validation Results ───────────────────────────────────────
@@ -184,9 +189,9 @@ export function buildCommercialWorksheetModel(
 
   // ── Section 9: Recommendations / Savings & Payback ─────────────────────
   heading("SAVINGS ANALYSIS & RECOMMENDATIONS");
-  kv("Theoretical energy-based capacity (kWp)", pipeline.fullKwp > 0 ? Number(pipeline.fullKwp.toFixed(1)) : null);
-  kv("TOD tariff-band proxy capacity (kWp, low confidence)", pipeline.todKwp > 0 ? Number(pipeline.todKwp.toFixed(1)) : null);
-  kv("Note", "Preliminary only, not an installable capacity: confirm daytime load, site yield, roof area and the utility's interconnection/export limits before quoting.");
+  kv("Recommended solar capacity (kWp)", pipeline.recommendedKwp > 0 ? Number(pipeline.recommendedKwp.toFixed(1)) : null);
+  kv("Recommended number of panels", pipeline.recommendedPanels > 0 ? pipeline.recommendedPanels : null);
+  kv("Note", "Preliminary: confirm roof area, site yield and the utility's interconnection/export limits before quoting.");
   kv("Energy rate (Rs/kWh) = variable charges / active kWh", energyRate > 0 ? Number(energyRate.toFixed(4)) : null);
   kv("Annual Saving @ Energy Rate (Rs)", pipeline.annualSavingAvgRate > 0 ? Number(pipeline.annualSavingAvgRate.toFixed(0)) : null);
   kv("Annual Saving @ ROUNDUP Rate (Rs)", pipeline.annualSavingRoundUpRate > 0 ? Number(pipeline.annualSavingRoundUpRate.toFixed(0)) : null);

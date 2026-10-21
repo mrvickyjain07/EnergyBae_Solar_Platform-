@@ -6,11 +6,12 @@
 // uploaded bill; everything here is reproducible from those records.
 //
 // Rules this module enforces:
-// - Active energy (kWh) from the bill's own meter-consumption table is the
-//   only sizing baseline. kVAh is kept beside it but never converted to kWh.
-// - A bill's printed billing-history table is a reference, not a measurement:
-//   on MSEDCL industrial bills its "Units" are the billed kVAh, not kWh. Those
-//   months are shown, never counted, so an uploaded month can't count twice.
+// - Two baselines (chooseBaseline): the uploaded bills' meter kWh, or the
+//   printed billing-history months averaged as printed (kWh or billed kVAh —
+//   the office workbook's method, 2026-10-21). One month annualised x12 is a
+//   weak profile, so "auto" prefers 6+ printed months over fewer uploaded
+//   bills. The two are never mixed, and the bill's own month is never added.
+//   kVAh is never converted to kWh.
 // - Bills are grouped by connection id only (never by similar names). A bill
 //   with no id stays on its own until the user assigns it.
 // - Missing is never zero: a month without a valid kWh is excluded and listed.
@@ -20,8 +21,8 @@
 import type { CommercialBillData } from "./types";
 import { normalizeLoad, type NormalizedLoad } from "./billUnits";
 import {
-  computeBillingStats, computeSizingPipeline, computeTodUtilisation, detectTodMode, energyRatePerKwh,
-  type BillingStats, type SizingPipeline, type SizingSettings, type TodMode, type TodUtilisation,
+  computeBillingStats, computeSizingPipeline, monthlyFixedOf, computeTodUtilisation, detectTodMode, energyRatePerKwh, reconcileCharges, todTotalsOf,
+  type BaselineStrategy, type BillingStats, type SizingPipeline, type SizingSettings, type TodMode, type TodUtilisation,
 } from "./commercialCalculations";
 
 export interface HistoryRow {
@@ -169,6 +170,7 @@ export interface EnergyBaseline {
   avgDailyKwh: number | null;
   annualKwh: number;
   annualBasis: "reading days" | "monthly average × 12";
+  source: "meter" | "history";
   confidence: "high" | "medium" | "low";
   notes: string[];
 }
@@ -195,9 +197,61 @@ export function energyBaseline(history: ConnectionHistory): EnergyBaseline | nul
     avgDailyKwh,
     annualKwh: avgDailyKwh !== null ? avgDailyKwh * 365 : (totalKwh / used.length) * 12,
     annualBasis: avgDailyKwh !== null ? "reading days" : "monthly average × 12",
+    source: "meter",
     confidence: used.length >= 12 ? "high" : used.length >= 6 ? "medium" : "low",
     notes,
   };
+}
+
+/**
+ * Baseline from the latest bill's printed billing-history table — every printed
+ * month (12, 13 or any count), the bill's own month never added, units averaged
+ * AS PRINTED (kWh, or billed kVAh on MSEDCL industrial bills — the office
+ * workbook averages them as-is, decided 2026-10-21). Missing or zero months are
+ * excluded and named; outliers are kept (flagged on screen).
+ */
+export function historyBaseline(latest: CommercialBillData | null): EnergyBaseline | null {
+  if (!latest) return null;
+  const rows = latest.billingHistory ?? [];
+  const units = rows.map((r) => pos(r.units)).filter((v): v is number => v !== null);
+  if (!units.length) return null;
+  const unit = latest.billingHistoryUnit === "kVAh" ? "billed kVAh" : latest.billingHistoryUnit === "kWh" ? "kWh" : "units as printed";
+  const skipped = rows.filter((r) => pos(r.units) === null).map((r) => r.monthLabel || "unlabelled row");
+  const total = units.reduce((s, v) => s + v, 0);
+  const notes = [`Sized on the average of ${units.length} printed billing-history month${units.length === 1 ? "" : "s"} (${unit}), as in the office workbook.`];
+  if (skipped.length) notes.push(`Left out (no units printed or read): ${skipped.join(", ")} — not counted as zero.`);
+  if (units.length < 12) notes.push(`Based on ${units.length} month${units.length === 1 ? "" : "s"}; 12 months capture seasonal variation better.`);
+  return {
+    periods: units.length, totalKwh: total, avgMonthlyKwh: total / units.length,
+    minMonthlyKwh: Math.min(...units), maxMonthlyKwh: Math.max(...units),
+    totalDays: null, avgDailyKwh: null,
+    annualKwh: (total / units.length) * 12, annualBasis: "monthly average × 12", source: "history",
+    confidence: units.length >= 12 ? "high" : units.length >= 6 ? "medium" : "low",
+    notes,
+  };
+}
+
+/** The baseline a strategy selects; "history" falls back to the meter (with a note) when the table isn't usable kWh. */
+export function chooseBaseline(meter: EnergyBaseline | null, history: EnergyBaseline | null, strategy: BaselineStrategy): EnergyBaseline | null {
+  if (strategy === "meter") return meter;
+  if (strategy === "history") return history; // chosen explicitly: unavailable rather than silently the meter
+  const historyWins = history !== null && history.periods >= 6 && (meter === null || meter.periods < history.periods);
+  return historyWins ? history : meter;
+}
+
+function baselineIssueOf(strategy: BaselineStrategy, chosen: EnergyBaseline | null, latest: CommercialBillData | null): string | null {
+  if (chosen) return null;
+  if (strategy === "history") return "The billing history has no readable months.";
+  return "No valid active energy (kWh) yet — enter the KWH total consumption in § 03.";
+}
+
+function rateIssueOf(rate: number, bills: CommercialBillData[]): string | null {
+  if (rate > 0) return null;
+  const b = bills.at(-1);
+  if (!b || !(Number(b.activeKwh) > 0)) return "Needs this bill's active kWh (§ 03).";
+  const r = reconcileCharges(b);
+  if (r.currentOk === false) return `The charge lines add up to ₹${r.currentCharges.toLocaleString("en-IN")}, not the printed Total Current Bill ₹${r.printedCurrentTotal.toLocaleString("en-IN")} — fix the lines in § 03 first.`;
+  return "Needs the energy charge lines (§ 03).";
 }
 
 // ───────────────────────── Sizing ─────────────────────────
@@ -302,7 +356,12 @@ export interface CiBill { data: CommercialBillData; sourceId: string; fileHash?:
 export interface CiAnalysis {
   histories: ConnectionHistory[];
   history: ConnectionHistory | null; // the connection being sized
-  baseline: EnergyBaseline | null;
+  baseline: EnergyBaseline | null; // the one sized on (chooseBaseline)
+  meterBaseline: EnergyBaseline | null;
+  historyBaseline: EnergyBaseline | null; // null unless the latest bill's history table is in kWh
+  /** Why there is no sizing baseline, or why the rate is unknown — shown instead of a number. */
+  baselineIssue: string | null;
+  rateIssue: string | null;
   latest: CommercialBillData | null; // most recent used bill of that connection
   stats: BillingStats; // history-table statistics of the latest bill (reference only)
   /** ₹ per active kWh from the variable charges of the sized connection's bills (0 = unknown). */
@@ -320,14 +379,16 @@ export function analyseCommercial(bills: CiBill[], s: SizingSettings): CiAnalysi
   const periods = bills.map((b) => billToPeriod(b.data, b.sourceId, b.fileHash));
   const histories = consolidateBills(periods);
   const history = primaryHistory(histories);
-  const baseline = history ? energyBaseline(history) : null;
+  const meterBaseline = history ? energyBaseline(history) : null;
   const usedSources = new Set(history?.months.filter((m) => m.status === "used").flatMap((m) => m.sources) ?? []);
   const inHistory = bills.filter((b) => usedSources.has(b.sourceId));
   const pool = inHistory.length ? inHistory : bills;
   const latest = pool.length ? [...pool].sort((a, b) => toMonthKey(a.data.billingMonth).localeCompare(toMonthKey(b.data.billingMonth))).at(-1)!.data : null;
+  const histBaseline = historyBaseline(latest);
+  const baseline = chooseBaseline(meterBaseline, histBaseline, s.baseline ?? "auto");
   const todMode = detectTodMode(latest?.connectionType ?? "");
-  const stats = computeBillingStats(latest?.billingHistory ?? [], latest?.fixedCharges ?? "");
-  const tod = computeTodUtilisation(latest?.todSlots ?? []);
+  const stats = computeBillingStats(latest?.billingHistory ?? [], latest ? monthlyFixedOf(latest) : "");
+  const tod = computeTodUtilisation(latest?.todSlots ?? [], undefined, latest ? todTotalsOf(latest) : undefined);
   const energyRate = energyRatePerKwh(pool.map((b) => b.data));
   const pipeline = computeSizingPipeline({
     annualKwh: baseline?.annualKwh ?? 0,
@@ -340,7 +401,7 @@ export function analyseCommercial(bills: CiBill[], s: SizingSettings): CiAnalysi
     systemCost: s.systemCost === "" ? 0 : s.systemCost,
   });
   return {
-    histories, history, baseline, latest, stats, energyRate, todMode, tod, pipeline,
+    histories, history, baseline, meterBaseline, historyBaseline: histBaseline, latest, baselineIssue: baselineIssueOf(s.baseline ?? "auto", baseline, latest), rateIssue: rateIssueOf(energyRate, pool.map((b) => b.data)), stats, energyRate, todMode, tod, pipeline,
     sanctioned: normalizeLoad(latest?.sanctionedLoad ?? "", unitOf(latest?.sanctionedLoadUnit)),
     connected: normalizeLoad(latest?.connectedLoad ?? "", unitOf(latest?.connectedLoadUnit)),
   };

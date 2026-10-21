@@ -1,17 +1,18 @@
 // src/modules/projects/billAnalysisRules.ts
 // Pure rules for saving a reviewed bill worksheet to a project (migration
 // 0018). The server sanitizes the client's worksheet and derives the summary
-// numbers itself — through buildWorksheetModel, the same model behind the
+// numbers itself — through summariseHistory (worksheetModel.ts), the same model behind the
 // xlsx and Google Sheets exports — so a saved bill can never disagree with
 // what its worksheet exports, and a client can't post a made-up capacity.
 // C&I bills go through the commercial module's own pure functions (the same
 // ones its screen and Excel export use) — never a re-derived copy.
 //
 // A saved bill is standalone (project_id null) or linked to one project.
-import { buildWorksheetModel } from "../../worksheetModel";
+import { summariseHistory } from "../../worksheetModel";
 import { buildBlankCommercialBillData, type CommercialBillData } from "../commercial/types";
 import { sizingFrom } from "../commercial/commercialCalculations";
 import { analyseCommercial } from "../commercial/consumptionSizing";
+import { toChargeLines, toTodRows } from "../commercial/chargeMapping";
 import type { CustomerType, SystemInput } from "./projectRules";
 
 export const BILL_CATEGORIES = [
@@ -91,9 +92,7 @@ export function validateBillAnalysis(raw: any): Result<BillAnalysisInput> {
   const solarPanelUsed = inRange(raw.data.solarPanelUsed, 50, 1000, 600);
   const phase = raw.phase === 1 || raw.phase === 3 ? raw.phase : null;
 
-  const cell = (ref: string) => buildWorksheetModel(slot, solarPanelUsed).cells.find((c) => c.ref === ref)?.value;
-  const avg = cell("D22");
-  const kw = cell("D25");
+  const { avgUnits: avg, capacity: kw } = summariseHistory(slot, solarPanelUsed);
 
   return {
     ok: true,
@@ -137,6 +136,9 @@ function coerceCommercialBill(b: any): CommercialBillData | null {
   bill.readingFrom = isoDay(bill.readingFrom);
   bill.readingTo = isoDay(bill.readingTo);
   bill.billingHistory = b.billingHistory.map((r: any) => ({ monthLabel: str(r?.monthLabel, 20), units: num(r?.units), billAmount: num(r?.billAmount) }));
+  // Evidence arrays: re-read and re-classified here, never trusted as sent.
+  bill.chargeLines = toChargeLines(b.chargeLines).slice(0, 80);
+  bill.todRows = toTodRows(b.todRows).slice(0, 12);
   bill.todSlots = blank.todSlots.map((slot) => ({ slot: slot.slot, units: num((Array.isArray(b.todSlots) ? b.todSlots : []).find((t: any) => t?.slot === slot.slot)?.units) }));
   return bill;
 }
@@ -154,8 +156,8 @@ function validateCommercial(raw: any): Result<BillAnalysisInput> {
   // the meter tables only, consolidated across the bills of one connection.
   const all: CommercialBillData[] = bills ?? [bill];
   const a = analyseCommercial(all.map((d, i) => ({ data: d, sourceId: d.filename || `bill ${i + 1}` })), sizing);
-  // The primary energy-based size (whole panels). The TOD tariff-band proxy is never the recommendation.
-  const kw = a.pipeline.fullKwp;
+  // The recommendation (office workbook formula): TOD consideration × calculated capacity, whole panels.
+  const kw = a.pipeline.recommendedKwp;
 
   return {
     ok: true,

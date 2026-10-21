@@ -27,8 +27,20 @@ exact list of differences. Rules specific to this copy:
   unreachable — don't re-add them without a sign-in decision.
 - Upload limit is `src/uploadLimits.ts` (3 MB — Vercel's 4.5 MB body cap
   after base64); `Uploader.tsx` compresses big photos, never PDFs.
+- A single bill can be several pages (PDF + photos, front/back, camera).
+  `BillEnhancer.tsx` keeps the ordered page list and `src/billPages.ts` merges
+  it in the browser into ONE PDF ≤ 3 MB, so `/api/extract` and
+  `/api/commercial/extract` still take one file = one analysis. Don't add an
+  array upload to the routes. Enhancement is per page (`/api/enhance-bill`
+  takes one page per request, returns JPEG) — a failure never blocks a scan.
 - Gemini calls go through `generateWithGeminiFallback` (key → backup key →
   `GEMINI_FALLBACK_MODEL`); pass its `model` argument, never a literal.
+- **Billing history rule, ALL bills (Home, Society, C&I — 2026-10-21):** averages
+  use exactly the months printed in the bill's history table (12, 13, any count);
+  the bill's own month is never added. Home/Society figures come only from
+  `summariseHistory` (`worksheetModel.ts`): unread months are skipped, not 0, and
+  unit cost = (bill − fixed charges) ÷ units, as in the office workbook. Pinned
+  by `src/billingHistoryAverage.test.ts`.
 - Light theme is the default (`ThemeContext.tsx`, own storage key).
 
 ## Direction: multi-tenant SaaS for solar vendors
@@ -234,17 +246,20 @@ trust client numbers, never re-derive C&I math. C&I hands its result up via
 the one additive `onResult` prop on the frozen `CommercialBillAnalysis`; a
 saved C&I bill can't be reopened into that screen (it takes no state back in).
 A bill feeds a system by COPYING its recommendation, not by FK.
-C&I sizing (2026-10-15): `commercial/consumptionSizing.analyseCommercial` is the one engine for
-the screen (single + several bills), both exports and this save check. It sizes on ACTIVE kWh
-from the meter table only (billing-history "Units" are billed kVAh on MSEDCL industrial bills —
-shown, never sized on), annualises from reading days, consolidates bills per consumer number
-only, and uses visible settings: yield (default 1400 kWh/kWp/yr), offset %, optional margin %
-(default 0 — no hidden ×1.1 anywhere, including the old LT TOD ×1.1). HP loads convert × 0.746
-(`billUnits.ts`); kVA never. The saved `recommended_kw` is the theoretical energy-based size
-(`pipeline.fullKwp`); the TOD B+C share is a low-confidence tariff-band proxy shown apart, never
-the recommendation. Each printed bill line has one field: register readings ≠ period consumption
+C&I sizing (2026-10-21, office workbook "Metal Junction E-Bill Analysis.xlsx" — replaces the
+2026-10-15 kWh-only rules): `commercial/consumptionSizing.analyseCommercial` is the one engine for
+the screen (single + several bills), both exports and this save check. Default baseline = the
+average of the printed billing-history months AS PRINTED (kWh or billed kVAh, 6+ months; else the
+meter kWh, which stays selectable). Calculated capacity = avg × 12 × (1 + margin, default 10 %) ÷
+yield (1400); TOD consideration = B+C share × 1.1 (`TOD_UPLIFT`); recommended = consideration ×
+calculated capacity, ROUND to whole panels (`pipeline.recommendedKwp`, saved as `recommended_kw`;
+full capacity when there's no complete TOD table). Metal Junction Sep-2026 = 399 panels / 239.4 kWp,
+pinned in `src/billingHistoryAverage.test.ts`. HP loads convert × 0.746 (`billUnits.ts`); kVA never. Each printed bill line has one field: register readings ≠ period consumption
 (kWh and kVAh), PF and billed demand are read as printed (never computed — the 75 % CD floor is a
-screening warning only), demand charges ≠ fixed charges, TOD Tariff EC is its own signed field.
+screening warning only), demand charges ≠ the printed Fixed Charges line (separate fields), but the "Fixed Charges" shown on
+screen and in the export is `monthlyFixedOf` = Demand + any Fixed line (office workbook, 2026-10-21),
+TOD Tariff EC is its own signed field. Billing history = the printed months only; the bill's own month
+is never merged in (2026-10-21).
 `reconcileCharges` documents the rounding rule; a bill that doesn't add up is flagged and left
 out of the ₹/kWh savings rate. `julyBillRegression.test.ts` pins all of this on one real bill.
 `billAnalyses.integration.test.ts` runs the real routes against the Dev DB
@@ -322,9 +337,10 @@ job over ~20 bills needs one of those, a billing-enabled key, or a configured
 Re-run before changing the default:
 `node .agent/run_eval2.cjs <model> && node .agent/score.cjs <model>` — **from the
 repo root**, since the harness loads `.env.local` CWD-relative and silently
-injects nothing when run from `.agent/`. The harness omits the `thinkingBudget`
-and `responseSchema` that production sends, so its score is a floor, not a
-prediction.
+injects nothing when run from `.agent/`. The harness omits the `responseSchema`
+that production sends, so its score is a floor, not a prediction. Production
+sends NO thinking config (model default) — `thinkingBudget: 512` made Gemini 3
+think for ~63k tokens (144 s+) on a C&I bill; see `GEMINI_MODEL`'s comment.
 
 Uploads are base64 data-URLs (hence `express.json({ limit: "50mb" })`), not
 multipart. New upload routes should reuse that pattern rather than adding multer.

@@ -10,6 +10,7 @@ import { motion } from "motion/react";
 import { FileSpreadsheet, Play, RotateCcw, Trash2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
 import Uploader, { LoadedFile } from "../../components/Uploader";
 import { CommercialBillData, buildBlankCommercialBillData } from "./types";
+import { billFromExtraction, extractionVersionError } from "./extractionResult";
 import { buildBillingHistoryWindow, DEFAULT_SIZING, type SizingSettings } from "./commercialCalculations";
 import { analyseCommercial, type MonthStatus } from "./consumptionSizing";
 import CiSizingPanel from "./CiSizingPanel";
@@ -46,28 +47,9 @@ const STATUS_TONE: Record<QueueStatus, string> = {
   "Quota Blocked": "#f87171",
 };
 
-// Mirrors the merge the single-bill flow performs after extraction, but onto a
-// blank record rather than onto whatever the user had typed.
-function toBillData(ocr: Partial<CommercialBillData>, fileName: string): CommercialBillData {
-  const merged: CommercialBillData = { ...buildBlankCommercialBillData() };
-  (Object.keys(ocr) as (keyof CommercialBillData)[]).forEach((key) => {
-    if (key === "billingHistory" || key === "todSlots") return;
-    const val = ocr[key];
-    if (val !== undefined && val !== null && val !== "") (merged as any)[key] = val;
-  });
-  if (Array.isArray(ocr.billingHistory) && ocr.billingHistory.length > 0) {
-    merged.billingHistory = buildBillingHistoryWindow(ocr.billingHistory);
-  }
-  if (Array.isArray(ocr.todSlots) && ocr.todSlots.length > 0) {
-    merged.todSlots = merged.todSlots.map((slot) => {
-      const match = ocr.todSlots!.find((s) => s.slot === slot.slot);
-      return match && match.units !== "" && match.units !== undefined ? { ...slot, units: match.units } : slot;
-    });
-  }
-  merged.confidence = typeof ocr.confidence === "number" ? ocr.confidence : 0;
-  merged.filename = fileName;
-  return merged;
-}
+// Each bill starts from a blank record (extractionResult.billFromExtraction), so
+// one document's blanks can never be filled from another's.
+const toBillData = billFromExtraction;
 
 // Content fingerprint of an uploaded file, so the same bill uploaded twice is
 // counted once (consumptionSizing.consolidateBills). Cached per queue item.
@@ -152,10 +134,11 @@ export default function CommercialBatchAnalysis({ onResult }: { onResult?: (resu
       const res = await response.json();
       patch(item.id, { status: "Extracting" });
 
-      if (!res.success || !res.data) {
+      const stale = res.success ? extractionVersionError(res) : null;
+      if (!res.success || !res.data || stale) {
         patch(item.id, {
           status: res.code === "QUOTA_EXCEEDED" ? "Quota Blocked" : "Failed",
-          error: res.error || "Unable to extract bill.",
+          error: stale ?? res.error ?? "Unable to extract bill.",
         });
         return;
       }

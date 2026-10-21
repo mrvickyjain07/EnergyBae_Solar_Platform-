@@ -32,10 +32,14 @@ import { GoogleGenAI } from "@google/genai";
 // mistake is what stranded a 42-bill batch run at 10 bills on 2026-08-12.
 //
 // 3.1-flash-lite is the default because it is not a compromise: equal accuracy
-// to 2.5-flash, 8x faster, 25x the quota. Its 83.2 was measured WITHOUT the
-// thinkingBudget the extraction routes actually send (the harness omits it), and
-// it does spend thinking tokens when asked — so production should land at or
-// above that figure, not below.
+// to 2.5-flash, 8x faster, 25x the quota. Its 83.2 was measured with the
+// model's DEFAULT thinking, and the extraction routes now send exactly that (no
+// thinkingConfig). They used to send thinkingBudget: 512, which Gemini 3 models
+// don't honour: on 2026-10-21 one C&I photo bill spent 62,914 thinking tokens
+// (144–219 s, past Vercel's 60 s limit) where the default answered in ~8 s with
+// output as accurate when checked against the printed bill (thinkingLevel LOW
+// was just as slow). Don't re-add a thinking setting without timing a real C&I
+// bill and comparing the fields.
 //
 // One caveat the average hides: 3.1-flash-lite is more bimodal than 2.5-flash —
 // it scores 100 on ten bills but drops to 41-75 on three. The batch queue's
@@ -199,6 +203,25 @@ export class ExtractionUnavailableError extends Error {
   }
 }
 
+// A hung Gemini call must not eat the whole request (one C&I scan took 155 s
+// locally while the same bill reads in 3–4 s): each attempt gets at most
+// GEMINI_ATTEMPT_MS, and the chain stops at GEMINI_TOTAL_MS so the route still
+// answers inside Vercel's 60 s function limit — the user gets "busy, try again
+// / enter manually" instead of a 504. A timeout counts as a 503 (transient).
+const GEMINI_ATTEMPT_MS = 40_000;
+const GEMINI_TOTAL_MS = 55_000;
+
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(Object.assign(new Error(`Gemini did not answer within ${Math.round(ms / 1000)} s (unavailable).`), { status: 503 })),
+      Math.max(0, ms)
+    );
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 // ─── Gemini call with key + model fallback ─────────────────────────────────
 // Tries, in order, each with the existing withRetry backoff, moving on only
 // after a TRANSIENT failure (503 / 429 / network):
@@ -221,11 +244,17 @@ export async function generateWithGeminiFallback<T>(
       ? [{ tag: `${label}-${GEMINI_FALLBACK_MODEL}`, client: getGeminiClient(), model: GEMINI_FALLBACK_MODEL }]
       : []),
   ];
-  for (let i = 0; i < steps.length; i++) {
+  const deadline = Date.now() + GEMINI_TOTAL_MS;
+  for (let i = 0; i < steps.length && Date.now() < deadline; i++) {
     const { tag, client, model } = steps[i];
     if (i > 0) console.warn(`[EnergyBae][${label}] Falling back → ${tag}...`);
     try {
-      return await withRetry(tag, () => callWithClient(client, model), 2, 2000);
+      return await withRetry(
+        tag,
+        () => withTimeout(callWithClient(client, model), Math.min(GEMINI_ATTEMPT_MS, deadline - Date.now())),
+        2,
+        2000
+      );
     } catch (err: any) {
       if (!isTransientError(err)) throw err;
     }

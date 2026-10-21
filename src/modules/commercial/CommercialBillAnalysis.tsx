@@ -15,9 +15,9 @@ import {
 import {
   buildBlankBillingRows,
   buildBillingHistoryWindow,
-  computeBillingStats,
+  computeBillingStats, monthlyFixedOf,
   detectTodMode,
-  computeTodUtilisation,
+  computeTodUtilisation, todTotalsOf,
   computeMeterDerived,
   reconcileCharges,
   computeValidationChecks,
@@ -25,6 +25,18 @@ import {
   type SizingSettings,
 } from "./commercialCalculations";
 import { analyseCommercial } from "./consumptionSizing";
+import { billFromExtraction, extractionVersionError } from "./extractionResult";
+import { chargeSuggestions, todSuggestions, type ChargeCategory, type SuggestField } from "./chargeMapping";
+
+const SUGGEST_LABEL: Record<SuggestField, string> = { fac: "FAC", tose: "Tax on Sale", wheelingCharges: "Wheeling Charges" };
+
+const CATEGORY_LABEL: Record<ChargeCategory, string> = {
+  energy: "Energy", tod: "TOD Tariff EC", demand: "Demand", fixed: "Fixed", fac: "FAC", ed: "Electricity duty", tose: "Tax on sale",
+  wheeling: "Wheeling", other: "Other", arrears: "Arrears", interest: "Interest (arrears)", credit: "Credit",
+  currentTotal: "Total current bill", billAmount: "Bill amount (rounded)", afterDue: "Payable after due date",
+  lateFeeIfLate: "Late fee — only if paid late", conditional: "Conditional discount — not applied", subtotal: "Subtotal / base — not added",
+  unmapped: "Unrecognised — not counted",
+};
 import CiSizingPanel from "./CiSizingPanel";
 import CommercialGoogleSheetsExportModal from "./CommercialGoogleSheetsExportModal";
 import "./commercial-bill-analysis.css";
@@ -129,38 +141,16 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
       const res = await response.json();
       if (progressTimer.current) clearInterval(progressTimer.current);
 
-      if (res.success && res.data) {
-        const ocr = res.data as Partial<CommercialBillData>;
-        setData((prev) => {
-          const merged: CommercialBillData = { ...prev };
-          (Object.keys(ocr) as (keyof CommercialBillData)[]).forEach((key) => {
-            const val = ocr[key];
-            if (key === "billingHistory" || key === "todSlots") return;
-            if (val !== undefined && val !== null && val !== "") {
-              (merged as any)[key] = val;
-            }
-          });
-          if (Array.isArray(ocr.billingHistory) && ocr.billingHistory.length > 0) {
-            // Server already de-dupes/sorts/merges-in-the-current-month and
-            // windows to 12 rows — re-windowing here is a defensive no-op.
-            merged.billingHistory = buildBillingHistoryWindow(ocr.billingHistory);
-          }
-          if (Array.isArray(ocr.todSlots) && ocr.todSlots.length > 0) {
-            merged.todSlots = prev.todSlots.map((slot) => {
-              const match = ocr.todSlots!.find((s) => s.slot === slot.slot);
-              return match && match.units !== "" && match.units !== undefined ? { ...slot, units: match.units } : slot;
-            });
-          }
-          merged.confidence = typeof ocr.confidence === "number" ? ocr.confidence : prev.confidence;
-          merged.filename = fn;
-          return merged;
-        });
+      const stale = res.success ? extractionVersionError(res) : null;
+      if (res.success && res.data && !stale) {
+        // A scan replaces the bill outright — never merged onto the previous bill's values.
+        setData(billFromExtraction(res.data as Partial<CommercialBillData>, fn));
         setStageIdx(OCR_STAGES.length);
         setHasResult(true);
         setTimeout(() => setIsLoading(false), 500);
       } else {
         setIsLoading(false);
-        setErrorMsg(res.error || "Unable to extract bill. Please upload a higher quality document.");
+        setErrorMsg(stale ?? res.error ?? "Unable to extract bill. Please upload a higher quality document.");
       }
     } catch (err: any) {
       if (progressTimer.current) clearInterval(progressTimer.current);
@@ -183,6 +173,8 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onResult identity is the parent's concern
   }, [hasResult, data, sizing]);
 
+  // Every figure on screen is derived from `data`, so an edit recalculates everything. The bill's own
+  // month in the history table is a copy of its kWh/kVAh and bill amount, so it is kept in step too.
   const updateField = <K extends keyof CommercialBillData>(key: K, value: CommercialBillData[K]) => {
     setData((prev) => ({ ...prev, [key]: value }));
   };
@@ -225,13 +217,19 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
 
   // ─── Derived calculations (single source of truth, shared with Excel export) ──
   const todMode = useMemo(() => detectTodMode(data.connectionType), [data.connectionType]);
-  const stats = useMemo(() => computeBillingStats(data.billingHistory, data.fixedCharges), [data.billingHistory, data.fixedCharges]);
-  const tod = useMemo(() => computeTodUtilisation(data.todSlots), [data.todSlots]);
+  const monthlyFixed = monthlyFixedOf(data);
+  const stats = useMemo(() => computeBillingStats(data.billingHistory, monthlyFixed), [data.billingHistory, monthlyFixed]);
+  const tod = useMemo(() => computeTodUtilisation(data.todSlots, undefined, todTotalsOf(data)), [data]);
   const meter = useMemo(() => computeMeterDerived(data), [data]);
   const recon = useMemo(() => reconcileCharges(data), [data]);
   // Sized on this bill's active energy (kWh) — same engine as Several bills and the exports.
   const analysis = useMemo(() => analyseCommercial([{ data, sourceId: data.filename || "bill" }], sizing), [data, sizing]);
-  const checks = useMemo(() => computeValidationChecks(stats, tod, meter, recon, data), [stats, tod, meter, recon, data]);
+  const historySized = analysis.baseline?.source === "history";
+  const todFixes = useMemo(() => todSuggestions(data.todRows, data.todSlots, todTotalsOf(data)), [data]);
+  const suggestions = useMemo(() => recon.printedCurrentTotal > 0
+    ? chargeSuggestions(data.chargeLines, data, Number(data.billedUnits) || Number(data.activeKwh) || 0, recon.printedCurrentTotal - recon.currentCharges)
+    : [], [data, recon]);
+  const checks = useMemo(() => computeValidationChecks(stats, tod, meter, recon, data, historySized), [stats, tod, meter, recon, data, historySized]);
 
   const handleExcelDownload = async () => {
     try {
@@ -389,8 +387,8 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                     <input className="inp" type="number" placeholder="KVA" value={numOrBlank(data.contractDemand)} onChange={(e) => updateField("contractDemand", e.target.value === "" ? "" : Number(e.target.value))} />
                     <div className="hint">kVA — never converted to kW</div></div>
                   <div className="f"><div className="flbl">Fixed Charges (₹)</div>
-                    <input className="inp" type="number" placeholder="only if printed" value={numOrBlank(data.fixedCharges)} onChange={(e) => updateField("fixedCharges", e.target.value === "" ? "" : Number(e.target.value))} />
-                    <div className="hint">Only a printed "Fixed Charges" line · Demand Charges are a separate line</div></div>
+                    <input className="inp" type="number" readOnly placeholder="from Demand Charges" value={numOrBlank(monthlyFixed)} />
+                    <div className="hint">Demand Charges{Number(data.fixedCharges) > 0 ? " + printed Fixed Charges line" : ""} · edit them under Charges</div></div>
                 </div>
                 <div className="fr3">
                   <div className="f"><div className="flbl">Connected Load (as printed)</div>
@@ -440,7 +438,7 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
           <div className="sec">
             <span className="sec-lbl">§ 02 — Billing History ({data.billingHistory.length} months)</span>
             <div className="sec-line" />
-            <span className="badge badge-auto">Reference only · not used for sizing</span>
+            <span className="badge badge-auto">{historySized ? "Sizing baseline · printed months only" : "Reference only · not used for sizing"}</span>
           </div>
           <div className="card">
             <div className="card-h">
@@ -450,7 +448,7 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                   <select className="ti" style={{ width: 80 }} value={data.billingHistoryUnit} onChange={(e) => updateField("billingHistoryUnit", e.target.value as CommercialBillData["billingHistoryUnit"])}>
                     <option value="unknown">unit?</option><option>kVAh</option><option>kWh</option>
                   </select>
-                  {" "}· bill ÷ units is an all-in ratio, not an energy rate</span>
+                  {" "}· {monthlyFixed !== "" ? `(bill − ₹${monthlyFixed} fixed/demand) ÷ units` : "bill ÷ units is an all-in ratio"}, not an energy rate</span>
                 <button
                   type="button"
                   onClick={addBillingMonth}
@@ -472,7 +470,7 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                   <th>Month</th>
                   <th className="r">Units ({data.billingHistoryUnit === "unknown" ? "billed" : data.billingHistoryUnit})</th>
                   <th className="r">Bill amount (₹)</th>
-                  <th className="r" title="Bill amount (incl. demand, duty, taxes) ÷ history units — not an energy rate">Bill ÷ units (₹, all-in)</th>
+                  <th className="r" title="Bill amount (incl. demand, duty, taxes, minus any printed fixed charges) ÷ history units — not an energy rate">{monthlyFixed !== "" ? "(Bill − fixed/demand) ÷ units (₹)" : "Bill ÷ units (₹, all-in)"}</th>
                   <th className="c">Status</th>
                   <th style={{ width: 28 }} />
                 </tr></thead>
@@ -565,11 +563,13 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                     <input className="inp" type="number" placeholder={meter.assessedUnits !== null ? `from readings: ${meter.assessedUnits.toFixed(0)}` : "KWH total consumption"} value={numOrBlank(data.activeKwh)} onChange={(e) => updateField("activeKwh", e.target.value === "" ? "" : Number(e.target.value))} />
                     <div className="hint">Period consumption: KWH "Total Consumption"{data.activeKwh === "" && meter.assessedUnits !== null ? " · blank = (curr − prev) × MF" : ""}</div></div>
                   <div className="f"><div className="flbl">Reading period</div>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <input className="inp" type="date" aria-label="Previous reading date" value={data.readingFrom} onChange={(e) => updateField("readingFrom", e.target.value)} />
-                      <input className="inp" type="date" aria-label="Current reading date" value={data.readingTo} onChange={(e) => updateField("readingTo", e.target.value)} />
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      <input className="inp" style={{ flex: "1 1 140px", minWidth: 0 }} type="date" aria-label="Previous reading date" value={data.readingFrom} onChange={(e) => updateField("readingFrom", e.target.value)} />
+                      <input className="inp" style={{ flex: "1 1 140px", minWidth: 0 }} type="date" aria-label="Current reading date" value={data.readingTo} onChange={(e) => updateField("readingTo", e.target.value)} />
                     </div>
-                    <div className="hint">{analysis.baseline?.totalDays ? `${analysis.baseline.totalDays} days, used to annualise` : "Dates missing: the year is estimated as 12 × this month"}</div></div>
+                    <div className="hint">{analysis.meterBaseline?.totalDays
+                      ? `${analysis.meterBaseline.totalDays} days${analysis.baseline?.source === "meter" ? ", used to annualise" : " (the sizing uses the billing history)"}`
+                      : "Dates missing: the year is estimated as 12 × this month"}</div></div>
                 </div>
                 <div className="fr2">
                   <div className="f"><div className="flbl">Apparent energy consumption (kVAh)</div>
@@ -609,6 +609,7 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                   ["energyCharges", "Energy Charges", "v", "VAR"],
                   ["todCharges", "TOD Tariff EC (− = rebate)", "v", "VAR"],
                   ["demandCharges", "Demand Charges", "fi", "DEMAND"],
+                  ["fixedCharges", "Fixed Charges line (only if printed)", "fi", "FIXED"],
                   ["fac", "Fuel Adj. Charge (FAC)", "v", "VAR"],
                   ["ed", "Electricity Duty (ED)", "v", "VAR"],
                   ["tose", "Tax on Sale (ToSE)", "v", "VAR"],
@@ -628,6 +629,14 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                       value={numOrBlank(data[key] as number | "")}
                       onChange={(e) => updateField(key, (e.target.value === "" ? "" : Number(e.target.value)) as any)}
                     />
+                  </div>
+                ))}
+                {suggestions.map((s) => (
+                  <div key={s.field} className="vl warn" style={{ margin: "8px 0", display: "flex", alignItems: "center", gap: 8 }}>
+                    <div className="vdot" />
+                    <span style={{ flex: 1 }}>Suggested {SUGGEST_LABEL[s.field]}: ₹{s.value.toFixed(2)} — {s.reason}</span>
+                    <button type="button" onClick={() => updateField(s.field, s.value)}
+                      style={{ fontSize: 12, fontWeight: 700, color: "var(--cyan)", border: "1px solid var(--cyan)", borderRadius: 6, padding: "2px 8px", background: "transparent", cursor: "pointer" }}>Apply</button>
                   </div>
                 ))}
                 <div className="cr-row" style={{ marginTop: 6 }}>
@@ -658,6 +667,36 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                     onChange={(e) => updateField("billAmount", e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
+                {data.chargeLines.length > 0 && (
+                  <details style={{ marginTop: 10 }}>
+                    <summary style={{ fontSize: 12, color: "var(--muted)", cursor: "pointer" }}>
+                      As printed on the bill · {data.chargeLines.length} lines{data.chargeLines.some((l) => l.category === "unmapped" && l.amount !== 0) ? " · some unrecognised" : ""}
+                    </summary>
+                    <table className="tbl" style={{ marginTop: 6 }}>
+                      <thead><tr><th>Printed label</th><th className="r">₹</th><th>Counted as</th></tr></thead>
+                      <tbody>
+                        {data.chargeLines.map((l, i) => (
+                          <tr key={i}>
+                            <td style={{ fontSize: 12 }}>{l.label}</td>
+                            <td className="r" style={{ fontSize: 12 }}>{l.amount.toFixed(2)}</td>
+                            <td style={{ fontSize: 11, color: l.category === "unmapped" ? "var(--amber)" : "var(--muted)" }}>{CATEGORY_LABEL[l.category]}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div className="hint">Labels are classified by the app, not the AI. Editing a field above doesn't change this record of the bill.</div>
+                  </details>
+                )}
+                <div className="cr-row">
+                  <span className="cr-name" title="Late-payment total — a different figure, never reconciled as the bill amount">Payable after due date (not reconciled)</span>
+                  <input
+                    className="cr-inp"
+                    type="number"
+                    placeholder="As on bill"
+                    value={numOrBlank(data.amountAfterDue)}
+                    onChange={(e) => updateField("amountAfterDue", e.target.value === "" ? "" : Number(e.target.value))}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -669,9 +708,9 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
             <span className="badge badge-auto">Auto-detected from connection type</span>
           </div>
           <div className="info-box">
-            TOD band proxy = <span className="hlg">Slot B</span> + <span className="hlg">Slot C</span> share of all TOD units (06:00–17:00 tariff bands).
-            These are billed units by tariff band, not measured daytime load: the proxy is <span className="hla">low confidence</span>, shown
-            apart from the energy-based size, and no multiplier is applied to it.
+            TOD share = <span className="hlg">Slot B</span> + <span className="hlg">Slot C</span> share of all TOD units (06:00–17:00 tariff bands).
+            As in the office workbook, <span className="hla">TOD consideration = share + 10 %</span>, and the recommended solar capacity =
+            TOD consideration × calculated capacity (§ 05).
           </div>
           <div className="card">
             <div className="card-h">
@@ -725,6 +764,15 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
               </table>
             </div>
           </div>
+
+          {todFixes.map((s) => (
+            <div key={s.slot} className={`vl ${s.exact ? "warn" : "err"}`} style={{ margin: "8px 0", display: "flex", alignItems: "center", gap: 8 }}>
+              <div className="vdot" />
+              <span style={{ flex: 1 }}>Slot {s.slot} → {s.value} units ({s.reason})</span>
+              <button type="button" onClick={() => updateTodSlot(s.slot, s.value)}
+                style={{ fontSize: 12, fontWeight: 700, color: "var(--cyan)", border: "1px solid var(--cyan)", borderRadius: 6, padding: "2px 8px", background: "transparent", cursor: "pointer" }}>Apply</button>
+            </div>
+          ))}
 
           <div className="vals" style={{ marginTop: 8 }}>
             {checks.map((c, i) => (

@@ -1,12 +1,11 @@
 // src/services/billEnhancement.test.ts
 // Run with: npx tsx src/services/billEnhancement.test.ts
-// Covers the deterministic sharp/pdf-lib pipeline only — assessDocumentQuality
+// Covers the deterministic sharp pipeline only — assessDocumentQuality
 // makes a live Gemini call and is exercised manually via the UI instead,
 // matching how the rest of this repo's tests avoid live API calls.
 import assert from "node:assert/strict";
 import sharp from "sharp";
-import { PDFDocument } from "pdf-lib";
-import { enhancePageBuffer, assemblePagesIntoPdf } from "./billEnhancement";
+import { enhancePageBuffer } from "./billEnhancement";
 
 let passed = 0;
 async function check(label: string, fn: () => Promise<void>) {
@@ -24,11 +23,11 @@ function makeTestPng(width: number, height: number): Promise<Buffer> {
 }
 
 async function main() {
-  await check("enhancePageBuffer returns a valid PNG", async () => {
+  await check("enhancePageBuffer returns a valid JPEG", async () => {
     const input = await makeTestPng(400, 300);
     const output = await enhancePageBuffer(input);
     const meta = await sharp(output).metadata();
-    assert.equal(meta.format, "png");
+    assert.equal(meta.format, "jpeg");
   });
 
   await check("enhancePageBuffer upscales pages below the minimum dimension", async () => {
@@ -44,13 +43,6 @@ async function main() {
     const meta = await sharp(output).metadata();
     assert.equal(meta.width, 2000);
     assert.equal(meta.height, 1600);
-  });
-
-  await check("assemblePagesIntoPdf produces one PDF page per input image", async () => {
-    const pages = [await makeTestPng(300, 400), await makeTestPng(300, 400), await makeTestPng(300, 400)];
-    const pdfBuffer = await assemblePagesIntoPdf(pages);
-    const doc = await PDFDocument.load(pdfBuffer);
-    assert.equal(doc.getPageCount(), 3);
   });
 
   console.log(`\n${passed} checks passed.`);

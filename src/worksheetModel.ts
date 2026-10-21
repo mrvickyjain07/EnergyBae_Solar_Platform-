@@ -34,9 +34,52 @@ export interface WorksheetModel {
   // models on one sheet cannot assume a stride and would otherwise have to
   // re-parse max row out of the cell refs.
   endRow?: number;
+  /** Residential sizing figures (same numbers as the cells) — read these, not fixed cell refs. */
+  summary?: HistorySummary;
 }
 
 export const WORKSHEET_DIVISOR = 106.060606;
+
+export interface HistorySummary {
+  /** (bill − fixed charges) ÷ units per month, as in the office workbook; null when units or bill is unknown. */
+  unitCosts: (number | null)[];
+  avgUnits: number | null;
+  avgBill: number | null;
+  avgCost: number | null;
+  kw: number;
+  panelsFraction: number;
+  panels: number;
+  capacity: number;
+  /** Sheet rows: first/last month row and the Average row. */
+  rows: { first: number; last: number; avg: number };
+}
+
+const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+// THE Home/Society averages — the on-screen sheet, the KPI cards, the xlsx /
+// Google Sheets export, society batch and saved bills all read this, so they
+// cannot disagree (three hand-copied averages used to). Rules from the office
+// workbook (2026-10-21): every printed month counts, the bill's own month is
+// not added (server.ts), a month with no units / bill read is left out of that
+// average rather than counted as 0, and unit cost = (bill − fixed charges) ÷ units.
+export function summariseHistory(slot: SlotDataLike, solarPanelUsed: number): HistorySummary {
+  const sUsed = solarPanelUsed || 600;
+  const history = slot.history || [];
+  const fixed = typeof slot.fixedCharges === "number" ? slot.fixedCharges : 0;
+  const pos = (v: unknown) => (typeof v === "number" && v > 0 ? v : null);
+  const unitCosts = history.map((h) => {
+    const u = pos(h.units), b = pos(h.billAmount);
+    return u !== null && b !== null ? (b - fixed) / u : null;
+  });
+  const avgUnits = mean(history.map((h) => pos(h.units)).filter((v): v is number => v !== null));
+  const avgBill = mean(history.map((h) => pos(h.billAmount)).filter((v): v is number => v !== null));
+  const avgCost = mean(unitCosts.filter((v): v is number => v !== null));
+  const kw = (avgUnits ?? 0) / WORKSHEET_DIVISOR;
+  const panelsFraction = kw > 0 ? (kw * 1000) / sUsed : 0;
+  const panels = panelsFraction > 0 ? Math.ceil(panelsFraction) : 0;
+  const last = 8 + Math.max(12, history.length);
+  return { unitCosts, avgUnits, avgBill, avgCost, kw, panelsFraction, panels, capacity: (panels * sUsed) / 1000, rows: { first: 9, last, avg: last + 2 } };
+}
 
 export function buildWorksheetModel(slot1Data: SlotDataLike, solarPanelUsed: number): WorksheetModel {
   const sUsed = solarPanelUsed || 600;
@@ -75,71 +118,51 @@ export function buildWorksheetModel(slot1Data: SlotDataLike, solarPanelUsed: num
   set("E8", "Bill Amount");
   set("F8", "Unit Cost");
 
+  const sum = summariseHistory(slot1Data, sUsed);
+  const { first, last, avg } = sum.rows;
   const history = slot1Data.history || [];
 
-  // Populate months data row 9 to 20 — no fabricated fallback numbers, blank when unknown
-  for (let i = 0; i < 12; i++) {
-    const h = history[i] || { month: "", units: "", billAmount: "", unitCost: "" };
-    const row = 9 + i;
-    const srNoLabel = 2 + i;
-
-    set(`B${row}`, srNoLabel);
+  // One row per printed month (at least 12, so a 12-month bill keeps the
+  // classic layout: data 9–20, Average 22) — no fabricated numbers, blank when unknown.
+  for (let row = first; row <= last; row++) {
+    const h = history[row - first] || {};
+    const cost = sum.unitCosts[row - first] ?? null;
+    set(`B${row}`, row - first + 1);
     set(`C${row}`, h.month || "");
-    set(`D${row}`, h.units === "" || h.units === undefined ? null : Number(h.units));
-    set(`E${row}`, h.billAmount === "" || h.billAmount === undefined ? null : Number(h.billAmount));
-    set(`F${row}`, h.unitCost === "" || h.unitCost === undefined ? null : Number(h.unitCost));
+    set(`D${row}`, typeof h.units === "number" ? h.units : null);
+    set(`E${row}`, typeof h.billAmount === "number" ? h.billAmount : null);
+    set(`F${row}`, cost, `IF(AND(N(D${row})>0,N(E${row})>0),(E${row}-N($D$3))/D${row},"")`);
   }
 
-  // Row 21 is a blank divider
+  // --- Summary rows (Average, kW, panels, capacity) right below the months ---
+  set(`B${avg}`, "Average");
+  set(`D${avg}`, sum.avgUnits, `AVERAGEIF(D${first}:D${last},">0")`);
+  set(`E${avg}`, sum.avgBill, `AVERAGEIF(E${first}:E${last},">0")`);
+  set(`F${avg}`, sum.avgCost, `AVERAGE(F${first}:F${last})`);
 
-  const validUnits = history.filter((x) => typeof x.units === "number");
-  const avgUnits = validUnits.length > 0
-    ? validUnits.reduce((acc, cur) => acc + (cur.units as number), 0) / validUnits.length
-    : 0;
+  set(`B${avg + 1}`, "kW");
+  set(`D${avg + 1}`, sum.kw, `D${avg}/106.060606`);
 
-  const validBills = history.filter((x) => typeof x.billAmount === "number" && (x.billAmount as number) > 0);
-  const avgBill = validBills.length > 0
-    ? validBills.reduce((acc, cur) => acc + (cur.billAmount as number), 0) / validBills.length
-    : 0;
+  set(`B${avg + 2}`, "Solar Panels");
+  set(`D${avg + 2}`, sum.panelsFraction, `D${avg + 1}*1000/C7`);
 
-  const validCosts = history.filter((x) => typeof x.unitCost === "number" && (x.unitCost as number) > 0);
-  const avgCost = validCosts.length > 0
-    ? validCosts.reduce((acc, cur) => acc + (cur.unitCost as number), 0) / validCosts.length
-    : 0;
+  set(`B${avg + 3}`, "Solar capacity");
+  set(`D${avg + 3}`, sum.capacity, `D${avg + 4}*C7/1000`);
 
-  const kwVal = avgUnits / WORKSHEET_DIVISOR;
-  const panelsFraction = kwVal > 0 ? (kwVal * 1000) / sUsed : 0;
-  const panelsInt = panelsFraction > 0 ? Math.ceil(panelsFraction) : 0;
-  const capacity = (panelsInt * sUsed) / 1000;
+  set(`B${avg + 4}`, "Number of Panels");
+  set(`D${avg + 4}`, sum.panels, `ROUNDUP(D${avg + 2},0)`);
 
-  // --- Calculated Summation Rows 22 to 26 ---
-  set("B22", "Average");
-  set("D22", validUnits.length > 0 ? avgUnits : null, "AVERAGE(D9:D20)");
-  set("E22", avgBill > 0 ? avgBill : null, "AVERAGE(E9:E20)");
-  set("F22", avgCost > 0 ? avgCost : null, "AVERAGE(F9:F20)");
+  // Totals — single consumer, mirrors capacity/panels above
+  set(`C${avg + 7}`, "Total solar capacity");
+  set(`D${avg + 7}`, sum.capacity, `D${avg + 3}`);
 
-  set("B23", "kW");
-  set("D23", kwVal, "D22/106.060606");
-
-  set("B24", "Solar Panels");
-  set("D24", panelsFraction, "D23*1000/C7");
-
-  set("B25", "Solar capacity");
-  set("D25", capacity, "D26*C7/1000");
-
-  set("B26", "Number of Panels");
-  set("D26", panelsInt, "ROUNDUP(D24,0)");
-
-  // Row 29/30 (Totals — single consumer, mirrors capacity/panels above)
-  set("C29", "Total solar capacity");
-  set("D29", capacity, "D25");
-
-  set("C30", "Number of solar panels");
-  set("D30", panelsInt, "D26");
+  set(`C${avg + 8}`, "Number of solar panels");
+  set(`D${avg + 8}`, sum.panels, `D${avg + 4}`);
 
   return {
     sheetTitle: "Pranay HOME",
     cells,
+    summary: sum,
     colWidths: [4, 18, 22, 15, 15, 15],
   };
 }

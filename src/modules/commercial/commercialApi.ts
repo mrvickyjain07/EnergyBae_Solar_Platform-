@@ -4,10 +4,10 @@
 // Generic infra (Gemini client, retry/backoff, PDF page detection, API-key
 // validation) is injected from server.ts rather than imported, so this file
 // never creates a circular dependency on server.ts.
-import { isAcceptedBillMime } from "../../uploadLimits";
 import type { Express } from "express";
 import * as fs from "fs";
 import * as path from "path";
+import { isAcceptedBillMime } from "../../uploadLimits";
 import * as xlsx from "xlsx";
 // Batch export only. Plain `xlsx` (SheetJS CE) silently drops cell styles on
 // write, so the batch sheet's shaded separator/header bands would vanish; this
@@ -23,12 +23,14 @@ import {
 } from "./commercialBatchWorksheetModel";
 import { buildBillingHistoryWindow, sizingFrom } from "./commercialCalculations";
 import { CommercialBillData, buildBlankCommercialBillData } from "./types";
-import { parseLoadUnit } from "./billUnits";
+import { loadFromPrintedText, parseLoadUnit } from "./billUnits";
+import { mapChargeLines, slotsFromTodRows, toChargeLines, toTodRows } from "./chargeMapping";
+import { EXTRACTION_VERSION } from "./extractionResult";
 // Direct import, unlike the injected deps below: GEMINI_MODEL is a plain
 // constant on a service module, not infra owned by server.ts, so importing it
 // here creates no circular dependency. Relative path, not the "@/" alias — the
 // server bundle is built by esbuild with no alias config.
-import { GEMINI_MODEL, generateWithGeminiFallback } from "../../services/geminiExtraction";
+import { GEMINI_MODEL, generateWithGeminiFallback, ExtractionUnavailableError } from "../../services/geminiExtraction";
 
 export interface CommercialApiDeps {
   getGeminiClient: () => GoogleGenAI;
@@ -47,6 +49,9 @@ This is NOT a residential bill — do not apply residential tariff assumptions. 
 bill-to-bill and must be read fresh from THIS document. Translate Marathi terms to English. Never fabricate or
 guess a value — if a field is not legible or not printed anywhere on the bill, return "" for strings or 0 for
 numbers rather than inventing a plausible-looking figure.
+The document may have several pages or photos — e.g. the front and back of the SAME bill. They are ONE bill:
+read every page, take each field from wherever it is printed, never add up or repeat a value because it appears
+on more than one page, and if two pages disagree use the clearest, most specific printing.
 
 Extract exactly these fields:
 
@@ -64,8 +69,13 @@ TECHNICAL PARAMETERS
    different line: never copy them here. Most Demand-billed / TOD bills print no Fixed Charges line — return 0.
 8. sanctionedLoad — the number printed beside "Sanctioned Load", exactly as printed (do NOT convert units).
 8a. sanctionedLoadUnit — the unit printed beside that number: "HP", "kW" or "kVA". "" if no unit is printed.
+    The unit printed AFTER the number wins over a unit inside the label: "Connected Load (KW): 13.28 HP" is
+    13.28 HP. Read each load field's own unit — they are not always the same on one bill.
     Many LT industrial bills print "200.00 HP" — report 200 and "HP"; the app converts HP to kW itself.
 8b. connectedLoad / connectedLoadUnit — same for "Connected Load". Never copy Contract Demand (kVA) into either.
+8c. sanctionedLoadText / connectedLoadText — copy each of those two printed rows EXACTLY as text, label,
+    number and unit together (e.g. "Sanctioned Load : 13.28 HP", "Connected Load (KW): 13.28 HP"). The
+    application reads the unit from this text itself.
 9. edCode — Electricity Duty code (e.g. "06 PART B")
 10. securityDeposit — Security Deposit amount in ₹ ("Security Deposit Held")
 11. meterNo — Meter Number
@@ -106,7 +116,23 @@ Assessed Consumption, Total Consumption. "Current"/"Previous" are cumulative REG
 20e. billedPowerFactor — the "Billed P.F." value as printed (e.g. 0.9420). Never compute a PF yourself; 0 if
     not printed.
 
-CHARGE COMPONENTS (each as a separate ₹ line item for the CURRENT bill only — do not sum them yourself)
+CHARGE BLOCK LINES — THE PRIMARY CHARGE OUTPUT
+C1. chargeLines — copy EVERY row of the bill's charge / billing-details amount block, top to bottom, as
+    { label, amount }: label = the row's printed text exactly (e.g. "FAC @ 0.30 Ps/U", "Tax on Sale @ 27.90
+    Ps/U", "TOD Tariff EC", "Principal Arrears 29/09/2026", "Amount (Rounded) Payable After 23/10/2026"),
+    amount = the number printed at the RIGHT END OF THAT SAME ROW, signed exactly as printed (-446.03 stays
+    negative). Include zero rows (0.00) and the total / rounded / payable rows. Do NOT decide what a line
+    means — just copy it; the application classifies labels itself. Never move a number to the row above or
+    below: check that each label and its amount sit on one printed line. Do NOT include the left-hand
+    "Consumption Type", "E.D. on (Rs.)" or "TOD Tariff" tables here (their numbers are bases, not charges).
+C2. billedUnits — the Units on the row of the "Consumption Type | Units | Rate | Charges" table that carries
+    the energy charge (e.g. 878.00 at rate 6.26 = 5496.28). 0 if not printed.
+C3. todRows — every row of the "TOD Tariff" table as { timeRange, units, rate, charge }: timeRange exactly as
+    printed (e.g. "06:00 Hrs - 09:00 Hrs"), units = that row's Units column, rate and charge as printed
+    (signed). A row at rate 0.0000 / charge 0.00 still has its own units. Empty array if the bill has no
+    TOD table.
+
+CHARGE COMPONENTS (fallback summary — chargeLines above is what the application uses)
 21. energyCharges — the "Energy Charges" line only (e.g. 351204.50).
 21a. todCharges — the ₹ amount on the "TOD Tariff EC" line of the charge block (the same Amount column as
     Demand Charges and Energy Charges), SIGNED as printed. Read that line; do NOT add up the "TOD Tariffs" slot
@@ -140,6 +166,9 @@ CHARGE COMPONENTS (each as a separate ₹ line item for the CURRENT bill only �
     Amount (Rounded)" / "Net Bill Amount" / "पूर्णांक देयक". This must be the figure BEFORE any late-payment
     penalty is added (i.e. NOT the "if paid after [date]" / "या तारखे नंतर भरल्यास" amount) and AFTER arrears/
     credit adjustments are already netted in by the bill itself.
+31b. amountAfterDue — the "Amount Payable After <date>" / "IF PAID AFTER <date>" / "या तारखे नंतर भरल्यास" figure
+    (the bill total WITH the delayed-payment charge added). This is a DIFFERENT number from billAmount — on the
+    same bill billAmount is lower. 0 if not printed. Never put this figure in billAmount.
 
 BILLING HISTORY (every month printed on the bill — commonly 12 or 13 rows, sometimes more)
 32. billingHistory — array of { monthLabel, units, billAmount }, read from a "BILLING HISTORY" table if the bill
@@ -147,8 +176,8 @@ BILLING HISTORY (every month printed on the bill — commonly 12 or 13 rows, som
     table — do not cap at 12 or drop the oldest rows if there are 13+. monthLabel format: "Mon-YYYY" with a
     FULL 4-digit year exactly as printed (e.g. "Jan-2026", not "Jan-26"). units = consumption in kWh/kVAh for
     that month. billAmount = that month's net billed amount (never arrears/security deposit). Do NOT include
-    the bill's own current period in this array — it is captured separately by fields 35/36/31 below and will
-    be merged in automatically.
+    the bill's own current period in this array unless it is printed as a row of that table — it is captured
+    separately by fields 35/36/31 below.
 32a. billingHistoryUnit — what that table's "Units" measure. Compare this bill's own billed units (the "Units"
     in the Consumption / charge block) with the KWH and KVAH "Total Consumption": if they equal the KVAH total
     the tariff bills on kVAh and the history is "kVAh"; if they equal the KWH total it is "kWh"; otherwise
@@ -159,7 +188,9 @@ with units = 0)
 33. todSlots — read from the "TOD Tariffs" table (columns: time range / Rate / Units / Demand / Charges) if
     present. Return exactly 4 entries: { slot: "A", units }, { slot: "B", units }, { slot: "C", units },
     { slot: "D", units } corresponding to the rows for 00:00–06:00 (A), 06:00–09:00 (B), 09:00–17:00 (C),
-    17:00–24:00 (D). units = that row's "Units" column value (NOT its Charges column).
+    17:00–24:00 (D). units = that row's "Units" column value (NOT its Charges column). A row whose Rate and
+    Charges are 0.0000 / 0.00 still has its own Units — read them (e.g. 06:00–09:00 at rate 0.0000 with 88 units
+    is units 88, not 0). The four Units normally add up to this bill's KWH or KVAH Total Consumption.
 
 CURRENT BILL PERIOD
 34. billingMonth — the bill's own period in "Mon-YYYY" format (e.g. "Feb-2026"), from the "BILL OF SUPPLY FOR
@@ -169,7 +200,9 @@ META
 35. confidence — your own confidence (0-100) in the overall extraction quality of this document
 
 Read every digit character-by-character — Indian utility bills often mix Devanagari and Latin numerals and have
-visually similar digits (1/7, 3/8, 0/6). Cross-check figures against any totals/tables shown twice on the bill.
+visually similar digits (1/7, 3/8, 0/6). On PHOTOGRAPHED or skewed bills a printed 6 is often misread as 4, 5, 8
+or 9 (e.g. 466 read as 488, 160 as 190) — zoom into each figure of the billing-history table before answering.
+Cross-check figures against any totals/tables shown twice on the bill.
 
 KNOWN MISREADS — CHECK EACH ONE BEFORE YOU ANSWER
 These are extraction errors actually observed on MSEDCL bills. Re-read the document to avoid each:
@@ -195,6 +228,12 @@ F. FINAL SELF-CHECK BEFORE YOU RETURN — this catches most of the above:
    If the sum does not reconcile, you have mis-assigned a line item — re-read the charge block and fix the
    assignment. Do NOT "balance" the figures by inventing or padding a value; only re-assign what is actually
    printed.
+H. FAC IS ITS OWN LINE. "FAC @ <rate> Ps/U" (or "Fuel Adjustment Charge", "FPPCA") is fac — never otherCharges.
+   otherCharges stays 0 unless "P.F. Penal Charges / P.F. Incentive", "Charges For Excess Demand" or "Debit Bill
+   Adjustment" carries a non-zero amount.
+I. THE BILL TOTAL IS NOT THE LATE-PAYMENT TOTAL. The header block prints both "Bill Amount" (e.g. 8720.00) and
+   "IF PAID AFTER <date>" (e.g. 8820.00); the charge block prints "Total Bill Amount (Rounded)" and "Amount
+   (Rounded) Payable After <date>". billAmount is the first of each pair, amountAfterDue the second.
 G. EXISTING SOLAR HAS TWO DIFFERENT LABEL PATTERNS DEPENDING ON TARIFF FORMAT — read the correct one, and never
    confuse "no solar" with "failed to find":
      - HT bills print "Solar Conn./ Type" + "Solar Capacity" + "Inst month" together in the technical/metering
@@ -221,7 +260,7 @@ Generate a JSON object matching this exact flat schema (no nested objects):
   "consumerNo": "string", "consumerName": "string", "address": "string",
   "connectionType": "LT" or "HT", "category": "string", "contractDemand": number,
   "fixedCharges": number, "sanctionedLoad": number, "sanctionedLoadUnit": "string",
-  "connectedLoad": number, "connectedLoadUnit": "string", "edCode": "string",
+  "connectedLoad": number, "connectedLoadUnit": "string", "sanctionedLoadText": "string", "connectedLoadText": "string", "edCode": "string",
   "securityDeposit": number, "meterNo": "string",
   "hasSolar": boolean, "solarCapacityKw": number, "solarGenerationUnits": number, "solarSourceField": "string",
   "prevReading": number, "currReading": number, "kvahPrevReading": number, "kvahCurrReading": number, "multiplyingFactor": number,
@@ -229,9 +268,11 @@ Generate a JSON object matching this exact flat schema (no nested objects):
   "avgPowerFactor": number, "billedPowerFactor": number, "activeKwh": number, "readingFrom": "string", "readingTo": "string",
   "energyCharges": number, "todCharges": number, "demandCharges": number, "fac": number, "ed": number, "tose": number,
   "wheelingCharges": number, "delayedPayment": number, "arrears": number, "creditAdjustment": number,
-  "otherCharges": number, "currentBillTotal": number, "billAmount": number, "billingMonth": "string",
+  "otherCharges": number, "currentBillTotal": number, "billAmount": number, "amountAfterDue": number, "billingMonth": "string",
   "billingHistory": [ { "monthLabel": "string", "units": number, "billAmount": number } ], "billingHistoryUnit": "string",
   "todSlots": [ { "slot": "A", "units": number }, { "slot": "B", "units": number }, { "slot": "C", "units": number }, { "slot": "D", "units": number } ],
+  "chargeLines": [ { "label": "string", "amount": number } ], "billedUnits": number,
+  "todRows": [ { "timeRange": "string", "units": number, "rate": number, "charge": number } ],
   "confidence": number
 }
 `;
@@ -250,6 +291,8 @@ const COMMERCIAL_RESPONSE_SCHEMA = {
     sanctionedLoadUnit: { type: Type.STRING },
     connectedLoad: { type: Type.NUMBER },
     connectedLoadUnit: { type: Type.STRING },
+    sanctionedLoadText: { type: Type.STRING },
+    connectedLoadText: { type: Type.STRING },
     edCode: { type: Type.STRING },
     securityDeposit: { type: Type.NUMBER },
     meterNo: { type: Type.STRING },
@@ -285,6 +328,7 @@ const COMMERCIAL_RESPONSE_SCHEMA = {
     otherCharges: { type: Type.NUMBER },
     currentBillTotal: { type: Type.NUMBER },
     billAmount: { type: Type.NUMBER },
+    amountAfterDue: { type: Type.NUMBER },
     billingMonth: { type: Type.STRING },
     billingHistoryUnit: { type: Type.STRING },
     billingHistory: {
@@ -310,9 +354,23 @@ const COMMERCIAL_RESPONSE_SCHEMA = {
         required: ["slot", "units"],
       },
     },
+    chargeLines: {
+      type: Type.ARRAY,
+      items: { type: Type.OBJECT, properties: { label: { type: Type.STRING }, amount: { type: Type.NUMBER } }, required: ["label", "amount"] },
+    },
+    billedUnits: { type: Type.NUMBER },
+    todRows: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: { timeRange: { type: Type.STRING }, units: { type: Type.NUMBER }, rate: { type: Type.NUMBER }, charge: { type: Type.NUMBER } },
+        required: ["timeRange", "units"],
+      },
+    },
     confidence: { type: Type.NUMBER },
   },
   required: [
+    "chargeLines",
     "consumerNo", "consumerName", "connectionType", "contractDemand", "fixedCharges",
     "billAmount", "billingMonth", "billingHistory", "todSlots",
     "hasSolar", "solarSourceField",
@@ -343,12 +401,52 @@ export function isoDate(v: unknown): string {
   return out && Number.isFinite(Date.parse(out)) ? out : "";
 }
 
+/**
+ * A TOD slot read as 0 is only believed when the four slots add up to the bill's kWh or kVAh total.
+ * Otherwise that 0 is a missed row (observed: a 06–09 h row printed at rate 0.0000 with 88 units came
+ * back as 0), so it is left blank for the reviewer — missing, never zero.
+ */
+export function blankUnreadSlot(units: number[], i: number, kwh: number, kvah: number): number | "" {
+  if (units[i] !== 0 || !units.some((u) => u > 0)) return units[i];
+  const sum = units.reduce((s, u) => s + u, 0);
+  const matches = (total: number) => total > 0 && Math.abs(sum - total) <= Math.max(2, total * 0.01);
+  if (matches(kwh) || matches(kvah)) return 0;
+  return kwh > 0 || kvah > 0 ? "" : 0;
+}
+
+function loadFields<K extends "sanctionedLoad" | "connectedLoad">(key: K, text: unknown, value: unknown, unit: unknown) {
+  const parsed = loadFromPrintedText(typeof text === "string" ? text : "");
+  const v: number | "" = parsed ? parsed.value || "" : toNum(value) || "";
+  const u = parsed && parsed.unit !== "unknown" ? parsed.unit : loadUnit(unit);
+  return { [key]: v, [`${key}Unit`]: u } as Record<K, number | ""> & Record<`${K}Unit`, CommercialBillData["sanctionedLoadUnit"]>;
+}
+
+/** kWh or kVAh by which total the printed billed units equal; the model's claim only when that can't decide. */
+export function historyUnitFrom(billedUnits: number, kwh: number, kvah: number, claimed: CommercialBillData["billingHistoryUnit"]): CommercialBillData["billingHistoryUnit"] {
+  if (!(billedUnits > 0)) return claimed;
+  const near = (total: number) => total > 0 && Math.abs(billedUnits - total) <= Math.max(1, total * 0.005);
+  const k = near(kwh), v = near(kvah);
+  if (k && !v) return "kWh";
+  if (v && !k) return "kVAh";
+  return k && v ? claimed : "unknown"; // matches neither: one of the totals is misread — ask, don't guess
+}
+
 // Exported for the sanitizer self-check in commercialSolarExtraction.test.ts.
 export function sanitizeCommercialData(raw: any): CommercialBillData {
   const connectionType = raw.connectionType === "HT" ? "HT" : raw.connectionType === "LT" ? "LT" : "";
 
   const billingMonth = typeof raw.billingMonth === "string" ? raw.billingMonth.trim() : "";
-  const billAmount = toNum(raw.billAmount);
+  // Charges: the printed lines, classified by label in code (chargeMapping.ts). The model's own
+  // field-by-field mapping is only a fallback for responses without lines.
+  const chargeLines = toChargeLines(raw.chargeLines);
+  const mapped = chargeLines.length ? mapChargeLines(chargeLines) : null;
+  const flat = (v: unknown): number | "" => toNum(v) || "";
+  // The late-payment total is not the bill total. A bill amount equal to the after-due figure is left
+  // blank for the reviewer — never a guessed replacement.
+  const amountAfterDueV = mapped ? mapped.amountAfterDue : flat(raw.amountAfterDue);
+  const amountAfterDue = Number(amountAfterDueV) || 0;
+  const billAmountRaw = Number(mapped ? mapped.billAmount : flat(raw.billAmount)) || 0;
+  const billAmount = amountAfterDue > 0 && Math.abs(billAmountRaw - amountAfterDue) < 0.01 ? 0 : billAmountRaw;
   const prevReading = toNum(raw.prevReading);
   const currReading = toNum(raw.currReading);
   const multiplyingFactor = toNum(raw.multiplyingFactor) || 1;
@@ -372,20 +470,18 @@ export function sanitizeCommercialData(raw: any): CommercialBillData {
   // kVAh consumed can never be below kWh consumed (power factor ≤ 1) either.
   const kvahRaw = toNum(raw.kvahReading);
   const kvahReading = isRegister(kvahRaw, [kvahPrevReading, kvahCurrReading]) || (activeKwh > 0 && kvahRaw > 0 && kvahRaw < activeKwh) ? 0 : kvahRaw;
-  const billingHistoryUnit: CommercialBillData["billingHistoryUnit"] = raw.billingHistoryUnit === "kVAh" || raw.billingHistoryUnit === "kWh" ? raw.billingHistoryUnit : "unknown";
+  // History unit = what the tariff bills on, decided from the printed billed units, not the model's opinion
+  // (it labelled a kWh-billed LT bill "kVAh" because kVAh readings appear elsewhere on the page).
+  const claimedUnit: CommercialBillData["billingHistoryUnit"] = raw.billingHistoryUnit === "kVAh" || raw.billingHistoryUnit === "kWh" ? raw.billingHistoryUnit : "unknown";
+  const billedUnits = toNum(raw.billedUnits);
+  const billingHistoryUnit = historyUnitFrom(billedUnits, activeKwh, kvahReading, claimedUnit);
 
-  // The printed "BILLING HISTORY" table on most commercial bills excludes the
-  // bill's own current period — merge it in as the latest entry (same gap
-  // fixed for Residential), then de-dupe/sort/window to the trailing 12. The
-  // merged figure must be in the table's own unit: kVAh on kVAh-billed tariffs
-  // (it used to be kWh, mixing two units in one column).
+  // Billing history = exactly the months printed in the bill's BILLING HISTORY
+  // table. The bill's own month is NOT added (decided 2026-10-21 — the office
+  // workbook averages the printed months only); its figures stay in the meter
+  // fields above.
+  const billingHistory = buildBillingHistoryWindow(printedHistory);
   const kwhFromReadings = currReading > prevReading ? (currReading - prevReading) * multiplyingFactor : 0;
-  const currentPeriodUnits = billingHistoryUnit === "kVAh" ? kvahReading : activeKwh || kwhFromReadings;
-  // An unknown current figure is not merged as 0 — the row would read as a zero-consumption month.
-  const mergedHistory = billingMonth && currentPeriodUnits > 0
-    ? [...printedHistory.filter((r: any) => r.monthLabel !== billingMonth), { monthLabel: billingMonth, units: currentPeriodUnits, billAmount }]
-    : printedHistory;
-  const billingHistory = buildBillingHistoryWindow(mergedHistory);
 
   // Never trust the model's bare boolean over its own evidence — hasSolar is
   // only true when backed by a real nameplate capacity or generation signal,
@@ -396,16 +492,24 @@ export function sanitizeCommercialData(raw: any): CommercialBillData {
   const hasSolar = raw.hasSolar === true && (solarCapacityKw > 0 || solarGenerationUnits > 0);
 
   // Demand charges are NOT fixed charges (decided 2026-10-15): each printed line
-  // lives in exactly one field. A model that copies demand into fixed is undone.
-  const demandCharges = toNum(raw.demandCharges);
+  // lives in exactly one field. From lines the label decides; from the fallback
+  // fields a model that copies demand into fixed is undone.
+  const demandCharges = mapped ? mapped.demandCharges : flat(raw.demandCharges);
   const fixedChargesRaw = toNum(raw.fixedCharges);
-  const fixedCharges = fixedChargesRaw > 0 && Math.abs(fixedChargesRaw - demandCharges) >= 0.01 ? fixedChargesRaw : 0;
+  const fixedCharges: number | "" = mapped ? mapped.fixedCharges
+    : fixedChargesRaw > 0 && Math.abs(fixedChargesRaw - (Number(demandCharges) || 0)) >= 0.01 ? fixedChargesRaw : "";
 
+  // TOD: the printed rows, mapped to slots by their time band in code. Fallback: the model's slots, where a
+  // 0 is only believed when the slots add up to the kWh/kVAh total.
+  const todRows = toTodRows(raw.todRows);
   const slotIds = ["A", "B", "C", "D"] as const;
-  const todSlots = slotIds.map((id) => {
+  const slotUnits = slotIds.map((id) => {
     const match = Array.isArray(raw.todSlots) ? raw.todSlots.find((s: any) => s?.slot === id) : null;
-    return { slot: id, units: match ? toNum(match.units) : 0 };
+    return match ? toNum(match.units) : 0;
   });
+  const todSlots = Array.isArray(raw.todRows) // new-format response: no rows = no TOD table on this bill (blank, not 0)
+    ? slotsFromTodRows(todRows)
+    : slotIds.map((id, i) => ({ slot: id, units: blankUnreadSlot(slotUnits, i, activeKwh || kwhFromReadings, kvahReading) as number | "" }));
 
   return {
     consumerNo: String(raw.consumerNo || "").replace(/[^0-9]/g, "") || "",
@@ -414,11 +518,10 @@ export function sanitizeCommercialData(raw: any): CommercialBillData {
     connectionType,
     category: typeof raw.category === "string" ? raw.category.trim() : "",
     contractDemand: toNum(raw.contractDemand) || "",
-    fixedCharges: fixedCharges || "",
-    sanctionedLoad: toNum(raw.sanctionedLoad) || "",
-    sanctionedLoadUnit: loadUnit(raw.sanctionedLoadUnit),
-    connectedLoad: toNum(raw.connectedLoad) || "",
-    connectedLoadUnit: loadUnit(raw.connectedLoadUnit),
+    fixedCharges,
+    // The printed row text decides value and unit when it parses; the model's own fields are the fallback.
+    ...loadFields("sanctionedLoad", raw.sanctionedLoadText, raw.sanctionedLoad, raw.sanctionedLoadUnit),
+    ...loadFields("connectedLoad", raw.connectedLoadText, raw.connectedLoad, raw.connectedLoadUnit),
     edCode: typeof raw.edCode === "string" ? raw.edCode.trim() : "",
     securityDeposit: toNum(raw.securityDeposit) || "",
     meterNo: typeof raw.meterNo === "string" ? raw.meterNo.trim() : "",
@@ -442,19 +545,22 @@ export function sanitizeCommercialData(raw: any): CommercialBillData {
     activeKwh: activeKwh || "",
     readingFrom: isoDate(raw.readingFrom),
     readingTo: isoDate(raw.readingTo),
-    energyCharges: toNum(raw.energyCharges) || "",
-    todCharges: signed(raw.todCharges),
-    demandCharges: demandCharges || "",
-    fac: toNum(raw.fac) || "",
-    ed: toNum(raw.ed) || "",
-    tose: toNum(raw.tose) || "",
-    wheelingCharges: toNum(raw.wheelingCharges) || "",
-    delayedPayment: toNum(raw.delayedPayment) || "",
-    arrears: toNum(raw.arrears) || "",
-    creditAdjustment: toNum(raw.creditAdjustment) || "",
-    otherCharges: toNum(raw.otherCharges) || "",
-    currentBillTotal: toNum(raw.currentBillTotal) || "",
+    ...(mapped
+      ? {
+          energyCharges: mapped.energyCharges, todCharges: mapped.todCharges, demandCharges, fac: mapped.fac, ed: mapped.ed,
+          tose: mapped.tose, wheelingCharges: mapped.wheelingCharges, delayedPayment: mapped.delayedPayment, arrears: mapped.arrears,
+          creditAdjustment: mapped.creditAdjustment, otherCharges: mapped.otherCharges, currentBillTotal: mapped.currentBillTotal,
+        }
+      : {
+          energyCharges: flat(raw.energyCharges), todCharges: signed(raw.todCharges), demandCharges, fac: flat(raw.fac), ed: flat(raw.ed),
+          tose: flat(raw.tose), wheelingCharges: flat(raw.wheelingCharges), delayedPayment: flat(raw.delayedPayment), arrears: flat(raw.arrears),
+          creditAdjustment: flat(raw.creditAdjustment), otherCharges: flat(raw.otherCharges), currentBillTotal: flat(raw.currentBillTotal),
+        }),
     billAmount: billAmount || "",
+    amountAfterDue: amountAfterDue || "",
+    chargeLines,
+    todRows,
+    billedUnits: billedUnits || "",
     billingMonth,
     billingHistory,
     billingHistoryUnit,
@@ -535,8 +641,7 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
 
       console.log(`[EnergyBae][Commercial] Sending document to ${GEMINI_MODEL} (pages: ${pageCount}, size: ${fileSizeMB.toFixed(2)} MB)...`);
 
-      // Same key + model fallback as residential (was primary-key-only, so a
-      // 503 "high demand" spike failed the scan outright).
+      // Same key → backup key → fallback-model chain as residential OCR.
       const response = await generateWithGeminiFallback(
         `Gemini-Commercial-OCR-${pageCount}pg`,
         (client, model) =>
@@ -547,7 +652,8 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
               responseMimeType: "application/json",
               responseSchema: COMMERCIAL_RESPONSE_SCHEMA,
               temperature: 0,
-              thinkingConfig: { thinkingBudget: 512 },
+              // No thinkingConfig — see GEMINI_MODEL in geminiExtraction.ts (a
+              // thinkingBudget made Gemini 3 think for 63k tokens / 144 s).
             },
           })
       );
@@ -576,7 +682,7 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
         errors: null,
       });
 
-      res.json({ success: true, data: sanitized });
+      res.json({ success: true, data: sanitized, extractionVersion: EXTRACTION_VERSION });
     } catch (error: any) {
       const rawMessage: string = error?.message || String(error);
       console.error("[EnergyBae][Commercial] ✗ Extraction failed:", rawMessage);
@@ -600,7 +706,10 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
 
       let userMessage = "Unable to extract bill. Please upload a higher quality document.";
       let code = "EXTRACTION_FAILED";
-      if (isQuota) {
+      if (error instanceof ExtractionUnavailableError) {
+        userMessage = error.message; // every key and model was overloaded
+        code = "EXTRACTION_UNAVAILABLE";
+      } else if (isQuota) {
         userMessage =
           "Daily AI quota reached for this API key. Extraction will work again after the quota resets, or with a billing-enabled key.";
         code = "QUOTA_EXCEEDED";

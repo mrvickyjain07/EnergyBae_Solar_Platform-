@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 
 process.env.GEMINI_API_KEY ||= "test-key-test-key-test-key-123456";
 delete process.env.GEMINI_API_KEY_BACKUP; // the configuration that failed in production
-const { generateWithGeminiFallback, ExtractionUnavailableError, GEMINI_MODEL, GEMINI_FALLBACK_MODEL } =
+const { generateWithGeminiFallback, ExtractionUnavailableError, GEMINI_MODEL, GEMINI_FALLBACK_MODEL, withTimeout, isTransientError } =
   await import("./geminiExtraction");
 
 let passed = 0;

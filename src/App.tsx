@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import ScannerHeader from "./components/ScannerHeader";
 import BillEnhancer from "./components/BillEnhancer";
@@ -63,7 +63,8 @@ import type { PriceDbCategory } from "./modules/proposal/components/PriceDatabas
 import { useAuth } from "./contexts/AuthContext";
 import { buildBlankSlotData } from "./defaultData";
 import { ExtractedBillData } from "./types";
-import { WORKSHEET_DIVISOR } from "./worksheetModel";
+import { summariseHistory } from "./worksheetModel";
+import { analyseCommercial } from "./modules/commercial/consumptionSizing";
 import { 
   Sun, 
   Trash2, 
@@ -434,6 +435,16 @@ export default function App() {
     setRoute('bill-analysis');
   };
 
+  // A finished scan scrolls the headline answer into view — on a phone it is
+  // otherwise below the fold. Fires on the no-answer → answer transition only,
+  // not on every later edit of the result.
+  const hasAnswer = isCommercial ? !!commercialResult : showResults && !societyBatchMode;
+  useEffect(() => {
+    if (!hasAnswer) return;
+    const t = setTimeout(() => document.getElementById("required-capacity")?.scrollIntoView({ behavior: "smooth", block: "start" }), 400);
+    return () => clearTimeout(t);
+  }, [hasAnswer]);
+
   if (authLoading) {
     return <div className="flex h-screen w-screen items-center justify-center bg-[var(--bg-surface)]" />;
   }
@@ -706,6 +717,48 @@ export default function App() {
                       )}
                     </motion.div>
 
+                    {/* Required solar capacity — the headline answer, right under the upload box.
+                        Same engines as the detailed results below (display only, nothing recomputed differently). */}
+                    {(() => {
+                      let req: { kwp: number; panels: number; panelW: number; basis: string } | null = null;
+                      if (isCommercial && commercialResult) {
+                        const bills = commercialResult.bills ?? [commercialResult.data];
+                        const p = analyseCommercial(bills.map((d, i) => ({ data: d, sourceId: d.filename || `bill ${i + 1}` })), commercialResult).pipeline;
+                        if (p.recommendedPanels > 0) req = {
+                          kwp: p.recommendedKwp, panels: p.recommendedPanels, panelW: commercialResult.panelWatt,
+                          basis: p.recommendedBasis === "tod" ? `TOD consideration ${(p.todConsideration * 100).toFixed(2)}% × calculated ${p.solarCapacityRawKwp.toFixed(1)} kWp` : `Calculated capacity (no TOD table on the bill)`,
+                        };
+                      } else if (!isCommercial && !societyBatchMode && showResults) {
+                        const h = summariseHistory(slot1, solarPanelUsed);
+                        if (h.panels > 0) req = { kwp: h.capacity, panels: h.panels, panelW: solarPanelUsed || 600, basis: `Average ${(h.avgUnits ?? 0).toFixed(2)} units/month ÷ 106.06` };
+                      }
+                      if (!req) return null;
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          id="required-capacity"
+                          className="glass-panel rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 border border-[var(--accent-green)]/30 scroll-mt-24"
+                          aria-live="polite"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-[var(--accent-green)]/10 grid place-items-center shrink-0">
+                            <Sun className="w-6 h-6 text-[var(--accent-green)]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-[var(--text-secondary)]">Required solar capacity</p>
+                            <p className="mt-0.5 text-3xl font-semibold tracking-tight text-[var(--accent-green)]">
+                              {req.kwp.toFixed(1)} <span className="text-base font-medium text-[var(--text-muted)]">kWp</span>
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--text-muted)]">{req.basis}</p>
+                          </div>
+                          <div className="sm:text-right">
+                            <p className="text-2xl font-semibold text-[var(--text-primary)]">{req.panels}</p>
+                            <p className="text-xs text-[var(--text-muted)]">panels × {req.panelW} W</p>
+                          </div>
+                        </motion.div>
+                      );
+                    })()}
+
                   </motion.div>
                 )}
                 {/* Home & Society sizing worksheet (residential categories only) */}
@@ -723,13 +776,14 @@ export default function App() {
                     const activeUnits = latestMonth && typeof latestMonth.units === "number" ? latestMonth.units : 0;
                     const activeBill = latestMonth && typeof latestMonth.billAmount === "number" ? latestMonth.billAmount : 0;
 
-                    const slotUnitsList = activeSlotData.history.map(h => typeof h.units === "number" ? h.units : 0);
-                    const avgSlotUnits = validMonths.length > 0 ? slotUnitsList.reduce((a, b) => a + b, 0) / validMonths.length : 0;
-                    const calculatedKw = avgSlotUnits / WORKSHEET_DIVISOR;
-                    const panelsInt = calculatedKw > 0 ? Math.ceil((calculatedKw * 1000) / (solarPanelUsed || 600)) : 0;
-                    const finalCap = (panelsInt * (solarPanelUsed || 600)) / 1000;
+                    const sizing = summariseHistory(activeSlotData, solarPanelUsed);
+                    const avgSlotUnits = sizing.avgUnits ?? 0;
+                    const calculatedKw = sizing.kw;
+                    const panelsInt = sizing.panels;
+                    const finalCap = sizing.capacity;
                     const annualYield = finalCap * 1350; // Maharashtra Sizing parameter multiplier estimate
-                    const annualSavings = Math.round(annualYield * (typeof latestMonth.unitCost === "number" && latestMonth.unitCost > 0 ? latestMonth.unitCost : 8));
+                    const latestCost = [...sizing.unitCosts].reverse().find((c): c is number => c !== null && c > 0);
+                    const annualSavings = Math.round(annualYield * (latestCost ?? 8));
 
                     return (
                       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -742,12 +796,12 @@ export default function App() {
                         ].map((item) => {
                           const Icon = item.icon;
                           return (
-                            <div key={item.title} className="glass-panel rounded-2xl p-5">
+                            <div key={item.title} className="glass-panel rounded-2xl p-4 sm:p-5 min-w-0">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm font-medium text-[var(--text-secondary)]">{item.title}</span>
                                 <Icon className="w-5 h-5 text-[var(--text-muted)]" aria-hidden />
                               </div>
-                              <p className="mt-3 text-2xl font-semibold tracking-tight tabular-nums text-[var(--text-primary)] truncate">
+                              <p className="mt-3 text-xl sm:text-2xl font-semibold tracking-tight tabular-nums text-[var(--text-primary)] truncate">
                                 <AnimatedNumber value={item.value} decimals={item.decimals ?? 0} prefix={item.prefix} suffix={item.suffix} />
                               </p>
                               <p className="mt-1 text-xs text-[var(--text-muted)]">{item.detail}</p>

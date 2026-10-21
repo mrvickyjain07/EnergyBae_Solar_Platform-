@@ -5,13 +5,11 @@
 // K40/K42/K43 values prove the buffer DOES feed into Solar Capacity/Panels
 // (K40 = K38*D40 where K38 = TOD Consideration * 1.1), even though a separate
 // "TOD Consideration" (unbuffered) figure is also shown alongside it.
-// Since 2026-10-15 the app applies NO hidden multiplier: the workbook's ×1.1
-// sizing buffer is the optional, visible "additional sizing margin" (marginPct
-// 10 here), and its LT TOD ×1.1 (K38 = I38 × 1.1) is no longer applied at all —
-// the TOD share is a low-confidence tariff-band proxy. To prove the pipeline
-// arithmetic still matches the workbook cell-for-cell, the test passes the
-// workbook's hand-applied ×1.1 TOD figure explicitly (12-month average × 12
-// stands in for annual kWh).
+// Since 2026-10-21 the pipeline applies the workbook formula itself (same as
+// "Metal Junction E-Bill Analysis.xlsx"): the ×1.1 sizing buffer is the visible
+// sizing margin (default 10 %), and the TOD ×1.1 (K38 = I38 × 1.1) is
+// TOD_UPLIFT inside computeSizingPipeline — so the test passes the RAW B+C
+// share and still lands on the workbook's cells (average × 12 = annual units).
 import assert from "node:assert/strict";
 import { computeBillingStats, computeTodUtilisation, computeSizingPipeline, detectTodMode } from "./commercialCalculations";
 
@@ -51,7 +49,7 @@ function close(label: string, actual: number, expected: number, tol = 0.01) {
   const workbookK38 = tod.utilisableFraction * 1.1; // the workbook's own hand-applied factor
   close("consumer1 workbook K38 (I38 × 1.1)", workbookK38, 0.4819332237, 0.0001);
 
-  const pipeline = computeSizingPipeline({ annualKwh: stats.avgUnits * 12, offsetPct: 100, marginPct: 10, specificYield: 1400, todFraction: workbookK38, panelWattage: 600, ratePerKwh: stats.avgUnitCost, systemCost: 0 });
+  const pipeline = computeSizingPipeline({ annualKwh: stats.avgUnits * 12, offsetPct: 100, marginPct: 10, specificYield: 1400, todFraction: tod.utilisableFraction, panelWattage: 600, ratePerKwh: stats.avgUnitCost, systemCost: 0 });
   close("consumer1 solarCapacityRawKwp", pipeline.solarCapacityRawKwp, 121.7845055);
   close("consumer1 fullPanels", pipeline.fullPanels, 203, 0);
   close("consumer1 fullKwp (Actual Solar capacity)", pipeline.fullKwp, 121.8);
@@ -88,7 +86,7 @@ function close(label: string, actual: number, expected: number, tol = 0.01) {
   const workbookK38 = tod.utilisableFraction * 1.1;
   close("consumer2 workbook K38 (I38 × 1.1)", workbookK38, 0.5140509346, 0.0001);
 
-  const pipeline = computeSizingPipeline({ annualKwh: stats.avgUnits * 12, offsetPct: 100, marginPct: 10, specificYield: 1400, todFraction: workbookK38, panelWattage: 600, ratePerKwh: stats.avgUnitCost, systemCost: 0 });
+  const pipeline = computeSizingPipeline({ annualKwh: stats.avgUnits * 12, offsetPct: 100, marginPct: 10, specificYield: 1400, todFraction: tod.utilisableFraction, panelWattage: 600, ratePerKwh: stats.avgUnitCost, systemCost: 0 });
   close("consumer2 solarCapacityRawKwp", pipeline.solarCapacityRawKwp, 65.70614286);
   close("consumer2 fullPanels", pipeline.fullPanels, 110, 0);
   close("consumer2 fullKwp", pipeline.fullKwp, 66);

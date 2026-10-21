@@ -2,7 +2,7 @@ import React from "react";
 import { motion } from "motion/react";
 import { FileSpreadsheet, Cloud } from "lucide-react";
 import AnimatedNumber from "./AnimatedNumber";
-import { WORKSHEET_DIVISOR } from "../worksheetModel";
+import { summariseHistory } from "../worksheetModel";
 
 export interface BillHistoryRow {
   month: string;
@@ -40,32 +40,16 @@ export default function ComparativeSheet({
   onSaveToGoogleSheets,
 }: ComparativeSheetProps) {
 
-  // Mathematical recalculations (matching EXACT spreadsheet factors)
-  const DIVISOR = WORKSHEET_DIVISOR;
-
-  const s1UnitsList = slot1.history.map(h => typeof h.units === "number" ? h.units : 0);
-
-  const s1ValidUnits = slot1.history.filter(h => typeof h.units === "number");
-  const s1AvgUnits = s1ValidUnits.length > 0
-    ? s1UnitsList.reduce((a, b) => a + b, 0) / s1ValidUnits.length
-    : 0;
-
-  // Average bill (ignoring blank/zero values)
-  const s1ValidBills = slot1.history.filter(h => typeof h.billAmount === "number" && h.billAmount > 0);
-  const s1AvgBill = s1ValidBills.length > 0
-    ? s1ValidBills.reduce((acc, current) => acc + (current.billAmount as number), 0) / s1ValidBills.length
-    : 0;
-
-  const s1ValidCosts = slot1.history.filter(h => typeof h.unitCost === "number" && h.unitCost > 0);
-  const s1AvgCost = s1ValidCosts.length > 0
-    ? s1ValidCosts.reduce((acc, current) => acc + (current.unitCost as number), 0) / s1ValidCosts.length
-    : 0;
-
-  const panelWatts = solarPanelUsed > 0 ? solarPanelUsed : 600;
-  const s1Kw = s1AvgUnits / DIVISOR;
-  const s1PanelsFraction = (s1Kw * 1000) / panelWatts;
-  const s1PanelsInt = s1PanelsFraction > 0 ? Math.ceil(s1PanelsFraction) : 0;
-  const s1Capacity = (s1PanelsInt * panelWatts) / 1000;
+  // Same figures as the export and society batch — one shared calculation.
+  const sum = summariseHistory(slot1, solarPanelUsed);
+  const s1AvgUnits = sum.avgUnits;
+  const s1AvgBill = sum.avgBill;
+  const s1AvgCost = sum.avgCost;
+  const s1Kw = sum.kw;
+  const s1PanelsFraction = sum.panelsFraction;
+  const s1PanelsInt = sum.panels;
+  const s1Capacity = sum.capacity;
+  const avgRow = sum.rows.avg;
 
   // Handler for modifying values live
   const handleS1HistoryChange = (index: number, key: keyof BillHistoryRow, value: any) => {
@@ -216,10 +200,11 @@ export default function ComparativeSheet({
                 <td className="px-2 py-1.5 bg-[var(--accent-green)]/10 text-[var(--accent-green)]">Unit Cost</td>
               </tr>
 
-              {/* Month Data Rows 9 to 20 */}
+              {/* One row per printed month, from row 9 */}
               {slot1.history.map((h1, idx) => {
                 const rowNum = 9 + idx;
-                const srNo = 2 + idx;
+                const srNo = 1 + idx;
+                const cost = sum.unitCosts[idx];
 
                 return (
                   <motion.tr
@@ -260,16 +245,9 @@ export default function ComparativeSheet({
                       />
                     </td>
 
-                    {/* F: Unit Cost */}
-                    <td className="px-2 text-right">
-                      <input
-                        type="number"
-                        step="0.001"
-                        value={h1.unitCost}
-                        placeholder="--"
-                        onChange={(e) => handleS1HistoryChange(idx, "unitCost", e.target.value === "" ? "" : Number(e.target.value))}
-                        className="w-full bg-transparent text-right text-[var(--text-secondary)] border-none focus:outline-none focus:ring-1 focus:ring-[var(--accent-green)]/30 rounded"
-                      />
+                    {/* F: Unit Cost = (Bill − Fixed Charges) ÷ Units, as in the office workbook */}
+                    <td className="px-2 text-right text-[var(--text-secondary)]" title="(Bill Amount − Fixed Charges) ÷ Units">
+                      {cost !== null ? cost.toFixed(2) : "--"}
                     </td>
                   </motion.tr>
                 );
@@ -277,17 +255,17 @@ export default function ComparativeSheet({
 
               {/* Average row */}
               <tr className="border-b border-[var(--border-strong)] bg-[var(--hover-bg)] font-bold transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">22</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow}</td>
                 <td className="border-r border-[var(--border-subtle)] px-2 py-1 bg-amber-500/5 text-amber-500">Average</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
-                <td className="border-r border-[var(--border-subtle)] px-2 text-right text-[var(--accent-green)] font-semibold">{s1ValidUnits.length > 0 ? s1AvgUnits.toFixed(2) : "--"}</td>
-                <td className="border-r border-[var(--border-subtle)] px-2 text-right text-[var(--text-primary)]">{s1AvgBill > 0 ? s1AvgBill.toFixed(2) : "--"}</td>
-                <td className="px-2 text-right text-[var(--text-secondary)]">{s1AvgCost > 0 ? s1AvgCost.toFixed(3) : "--"}</td>
+                <td className="border-r border-[var(--border-subtle)] px-2 text-right text-[var(--accent-green)] font-semibold">{s1AvgUnits !== null ? s1AvgUnits.toFixed(2) : "--"}</td>
+                <td className="border-r border-[var(--border-subtle)] px-2 text-right text-[var(--text-primary)]">{s1AvgBill !== null ? s1AvgBill.toFixed(2) : "--"}</td>
+                <td className="px-2 text-right text-[var(--text-secondary)]">{s1AvgCost !== null ? s1AvgCost.toFixed(2) : "--"}</td>
               </tr>
 
               {/* kW capacity need */}
               <tr className="border-b border-[var(--border-subtle)] font-bold transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">23</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow + 1}</td>
                 <td className="border-r border-[var(--border-subtle)] px-2 py-1 text-[var(--text-primary)]">kW</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
                 <td className="border-r border-[var(--border-subtle)] px-2 text-right text-[var(--accent-green)] font-sans">{s1Kw.toFixed(9)}</td>
@@ -296,7 +274,7 @@ export default function ComparativeSheet({
 
               {/* Solar Panels sizing fraction */}
               <tr className="border-b border-[var(--border-subtle)] font-medium transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">24</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow + 2}</td>
                 <td className="border-r border-[var(--border-subtle)] px-2 py-1 text-[var(--text-secondary)]">Solar Panels</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
                 <td className="border-r border-[var(--border-subtle)] px-2 text-right text-[var(--accent-green)] font-sans opacity-90">{s1PanelsFraction.toFixed(9)}</td>
@@ -305,7 +283,7 @@ export default function ComparativeSheet({
 
               {/* Solar capacity in KW (YELLOW HIGHLIGHT) */}
               <tr className="border-b border-[var(--border-subtle)] font-bold transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">25</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow + 3}</td>
                 <td className="border-r border-[var(--border-subtle)] px-2 py-1.5 bg-amber-500/10 text-amber-500">Solar capacity</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
                 <td className="px-3 py-1.5 text-right bg-amber-500/20 text-amber-500 text-sm font-sans tracking-tight">
@@ -316,7 +294,7 @@ export default function ComparativeSheet({
 
               {/* Number of panels rounded (GREEN HIGHLIGHT) */}
               <tr className="border-b border-[var(--border-subtle)] font-bold transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">26</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow + 4}</td>
                 <td className="border-r border-[var(--border-subtle)] px-2 py-1.5 bg-[var(--accent-green)]/10 text-[var(--accent-green)]">Number of Panels</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
                 <td className="px-3 py-1.5 text-right bg-[var(--accent-green)]/20 text-[var(--accent-green)] text-sm font-sans">
@@ -330,7 +308,7 @@ export default function ComparativeSheet({
 
               {/* Total solar capacity */}
               <tr className="border-b border-t border-[var(--border-strong)] bg-[var(--hover-bg)] font-bold text-sm transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">29</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow + 7}</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
                 <td className="border-r border-[var(--border-subtle)] px-3 py-2 text-left text-amber-500 text-xs font-sans">
                   Total solar capacity kWp
@@ -342,7 +320,7 @@ export default function ComparativeSheet({
 
               {/* Total number of panels */}
               <tr className="border-b border-[var(--border-strong)] bg-[var(--hover-bg)] font-bold text-sm transition-colors duration-300">
-                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">30</td>
+                <td className="bg-[var(--bg-surface)] text-[var(--text-muted)] font-bold text-xs text-center border-r border-[var(--border-subtle)] select-none">{avgRow + 8}</td>
                 <td className="border-r border-[var(--border-subtle)]"></td>
                 <td className="border-r border-[var(--border-subtle)] px-3 py-2 text-left text-[var(--accent-green)] text-xs font-sans">
                   Number of solar panels

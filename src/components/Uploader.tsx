@@ -1,19 +1,17 @@
 // src/components/Uploader.tsx
 // Bill drop zone. Visual design ported from 21st.dev "File Upload"
 // (@extend-hq): a fan of file-type cards that spreads while dragging, a
-// "Browse files" pill, and a file row (thumbnail · name · Ready) once a file
-// is loaded. Rebuilt on lucide-react + the app's tokens instead of pulling in
+// "Browse files" pill and, for a single bill, "Use camera". Rebuilt on lucide-react + the app's tokens instead of pulling in
 // @hugeicons and border-beam; the drag glow is a CSS ring.
 //
-// Behaviour is unchanged from the previous Uploader: onFileLoaded fires
-// immediately on selection, `multiple` hands a whole selection to
-// onFilesLoaded, and onEnhanceClick is the ONLY path "Enhance & Clear Bill"
-// ever runs through (see BillEnhancer.tsx).
+// This is only the empty drop zone: every selection goes to onFilesLoaded at
+// once. Once a single bill has pages, BillEnhancer.tsx shows them (with add,
+// camera, reorder, remove and per-page enhancement).
 import React, { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "motion/react";
-import { MAX_BILL_BYTES, MAX_BILL_LABEL, dataUrlBytes, decideUpload } from "../uploadLimits";
-import { FileText, FileImage, Upload, Sparkles, RefreshCw, Eye, X, ExternalLink, FolderOpen, ShieldCheck, Zap, BarChart3, CloudUpload } from "lucide-react";
+import { motion } from "motion/react";
+import { MAX_BILL_LABEL, decideUpload } from "../uploadLimits";
+import { toJpeg } from "../billPages";
+import { FileText, Upload, X, ExternalLink, FolderOpen, ShieldCheck, Zap, BarChart3, CloudUpload, Camera } from "lucide-react";
 
 // Upload illustration: stacked MSEDCL bills floating over a solar panel,
 // ringed by a glowing orbit with light flowing along it, plus floating
@@ -47,7 +45,7 @@ function UploadIllustration({ active }: { active: boolean }) {
   );
 
   return (
-    <div className={`relative h-48 md:h-56 transition-transform duration-500 ${active ? "-translate-y-2 scale-[1.03]" : ""}`} aria-hidden>
+    <div className={`relative hidden sm:block h-48 md:h-56 transition-transform duration-500 ${active ? "-translate-y-2 scale-[1.03]" : ""}`} aria-hidden>
     {/* Drawn at a fixed 288px height, scaled down as a unit so the page fits one screen. */}
     <div className="absolute inset-x-0 top-1/2 h-72 -translate-y-1/2 scale-[0.82] origin-center">
       {/* Solar panel base */}
@@ -85,7 +83,7 @@ function UploadIllustration({ active }: { active: boolean }) {
 
 // Full-size look at the uploaded bill. Images render directly; PDFs go
 // through a blob: URL because Chrome refuses to show data: PDFs in a frame.
-function BillViewer({ src, name, onClose }: { src: string; name: string; onClose: () => void }) {
+export function BillViewer({ src, name, onClose }: { src: string; name: string; onClose: () => void }) {
   const isPdf = src.startsWith("data:application/pdf");
   const [url, setUrl] = useState<string | null>(isPdf ? null : src);
 
@@ -156,116 +154,72 @@ export interface LoadedFile {
 }
 
 interface UploaderProps {
-  onFileLoaded?: (base64Data: string, fileName: string) => void;
-  // Optional "Enhance & Clear Bill" trigger — shown once a file is loaded.
-  onEnhanceClick?: () => void;
-  enhancing?: boolean;
-  // Rasterized thumbnail of the loaded file (only BillEnhancer supplies it).
-  previewSrc?: string;
-  // The loaded file itself as a data URL — enables the "View" button, and is
-  // the thumbnail fallback for images when previewSrc isn't available.
-  fileSrc?: string | null;
-  // Batch mode: accept a whole selection and hand it over in one call; the
-  // caller renders its own queue.
+  // Every selection arrives here in one call. Batch mode (`multiple`) treats
+  // each file as its own bill; single mode (BillEnhancer) treats them as the
+  // pages of ONE bill — the picker allows several files either way.
+  onFilesLoaded: (files: LoadedFile[]) => void;
   multiple?: boolean;
-  onFilesLoaded?: (files: LoadedFile[]) => void;
+  // Single mode: shows "Use camera" (BillEnhancer owns the capture input).
+  onCameraClick?: () => void;
   isLoading: boolean;
   selectedFileName: string | null;
 }
 
-const ACCEPT = "image/*,application/pdf";
+export const ACCEPT = "image/*,application/pdf";
 
-// Oversized photos are re-encoded as JPEG in the browser so they fit the
-// upload limit (src/uploadLimits.ts). Longest side capped at 2400 px — still
-// ~200 dpi across an A4 bill, plenty for the tariff tables — then quality and
-// size step down until it fits. PDFs never come through here (see decideUpload).
-async function compressImage(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  let scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height));
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas is not available in this browser.");
-    ctx.fillStyle = "#fff"; // transparent PNG areas → white, not black, in JPEG
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", attempt < 2 ? 0.85 : 0.75);
-    if (dataUrlBytes(dataUrl) <= MAX_BILL_BYTES) return dataUrl;
-    if (attempt >= 1) scale *= 0.8;
-  }
-  throw new Error("still too large after compression");
-}
+// Oversized photos are re-encoded as JPEG in the browser (toJpeg) so they
+// fit the upload limit (src/uploadLimits.ts). PDFs never are (see decideUpload).
 const isAccepted = (f: File) => f.type === "application/pdf" || f.type.startsWith("image/") || /\.(pdf|png|jpe?g|webp|heic)$/i.test(f.name);
 
+const readAsDataUrl = (file: File) =>
+  new Promise<LoadedFile | null>((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) =>
+      resolve(event.target?.result ? { base64Data: event.target.result as string, fileName: file.name } : null);
+    // An unreadable file resolves null rather than rejecting, so one bad
+    // file never drops the rest of a selection.
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
 
-export default function Uploader({
-  onFileLoaded,
-  onEnhanceClick,
-  enhancing,
-  previewSrc,
-  fileSrc,
-  multiple = false,
-  onFilesLoaded,
-  isLoading,
-  selectedFileName,
-}: UploaderProps) {
+// Size check / compression per file: one rejected file never blocks the
+// rest of a selection — it is listed, the others go through.
+const prepare = async (file: File): Promise<LoadedFile | string> => {
+  const decision = decideUpload(file);
+  if (decision.action === "reject") return `${file.name}: ${decision.reason}`;
+  if (decision.action === "send") return (await readAsDataUrl(file)) ?? `${file.name}: couldn't be read.`;
+  try {
+    return { base64Data: await toJpeg(file), fileName: file.name.replace(/\.[^.]+$/, "") + ".jpg" };
+  } catch {
+    return `${file.name}: image is over ${MAX_BILL_LABEL} and couldn't be compressed in this browser — save it as a smaller JPG and try again.`;
+  }
+};
+
+/** Validate + read a picked/dropped selection. Shared by the drop zone and BillEnhancer's add-page / camera inputs. */
+export async function prepareBillFiles(fileList: FileList | null): Promise<{ ok: LoadedFile[]; problems: string[] }> {
+  const all = Array.from(fileList ?? []);
+  const accepted = all.filter(isAccepted);
+  if (all.length && !accepted.length) return { ok: [], problems: ["That file type isn't supported — upload a PDF, PNG or JPG."] };
+  const results = await Promise.all(accepted.map(prepare));
+  const problems = results.filter((r): r is string => typeof r === "string");
+  const unsupported = all.length - accepted.length;
+  if (unsupported > 0) problems.push(`${unsupported} file${unsupported > 1 ? "s" : ""} skipped — only PDF, PNG and JPG are supported.`);
+  return { ok: results.filter((r): r is LoadedFile => typeof r !== "string"), problems };
+}
+
+export default function Uploader({ onFilesLoaded, multiple = false, onCameraClick, isLoading, selectedFileName }: UploaderProps) {
   const [isDragActive, setIsDragActive] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
-  // Only real data URLs are viewable (the bundled sample is a placeholder token).
-  const viewable = !!fileSrc && fileSrc.startsWith("data:");
-  const thumb = previewSrc ?? (viewable && fileSrc!.startsWith("data:image") ? fileSrc! : undefined);
   const [rejection, setRejection] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Counter, not a boolean — dragleave fires when crossing into child
   // elements, which made the old zone flicker.
   const dragDepth = useRef(0);
 
-  const readAsDataUrl = (file: File) =>
-    new Promise<LoadedFile | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (event) =>
-        resolve(event.target?.result ? { base64Data: event.target.result as string, fileName: file.name } : null);
-      // An unreadable file resolves null rather than rejecting, so one bad
-      // file never drops the rest of a batch selection.
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    });
-
-  // Size check / compression per file: one rejected file never blocks the
-  // rest of a batch selection — it is listed, the others go through.
-  const prepare = async (file: File): Promise<LoadedFile | string> => {
-    const decision = decideUpload(file);
-    if (decision.action === "reject") return `${file.name}: ${decision.reason}`;
-    if (decision.action === "send") return (await readAsDataUrl(file)) ?? `${file.name}: couldn't be read.`;
-    try {
-      return { base64Data: await compressImage(file), fileName: file.name.replace(/\.[^.]+$/, "") + ".jpg" };
-    } catch {
-      return `${file.name}: image is over ${MAX_BILL_LABEL} and couldn't be compressed in this browser — save it as a smaller JPG and try again.`;
-    }
-  };
-
   const handleFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0 || isLoading) return;
-    const all = Array.from(fileList);
-    const accepted = all.filter(isAccepted);
-    if (accepted.length === 0) {
-      setRejection("That file type isn't supported — upload a PDF, PNG or JPG.");
-      return;
-    }
-    setRejection(null);
-    const results = await Promise.all((multiple ? accepted : accepted.slice(0, 1)).map(prepare));
-    const ok = results.filter((r): r is LoadedFile => typeof r !== "string");
-    const problems = results.filter((r): r is string => typeof r === "string");
-    const unsupported = all.length - accepted.length;
-    if (multiple && unsupported > 0) problems.push(`${unsupported} file${unsupported > 1 ? "s" : ""} skipped — only PDF, PNG and JPG are supported.`);
+    const { ok, problems } = await prepareBillFiles(fileList);
     setRejection(problems.length ? problems.join("\n") : null);
-    if (multiple) {
-      if (ok.length) onFilesLoaded?.(ok);
-    } else if (ok[0]) {
-      onFileLoaded?.(ok[0].base64Data, ok[0].fileName);
-    }
+    if (ok.length) onFilesLoaded(ok);
   };
 
   const dragProps = {
@@ -291,102 +245,12 @@ export default function Uploader({
       ref={fileInputRef}
       type="file"
       accept={ACCEPT}
-      multiple={multiple}
+      multiple
       onChange={(e) => { void handleFiles(e.target.files); e.target.value = ""; }}
       className="hidden"
       disabled={isLoading}
     />
   );
-
-  const ext = selectedFileName?.split(".").pop()?.toUpperCase() ?? "";
-
-  // ── File loaded (single mode) ────────────────────────────────────────────
-  if (selectedFileName && !multiple) {
-    return (
-      <div className="space-y-3" {...dragProps}>
-        {input}
-        <div
-          className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
-            isDragActive ? "border-[var(--accent-green)] bg-[var(--accent-green)]/5" : "border-[var(--border-subtle)] bg-[var(--bg-card)]"
-          }`}
-        >
-          <button
-            type="button"
-            onClick={() => viewable && setViewerOpen(true)}
-            disabled={!viewable}
-            aria-label="View bill"
-            className="w-11 h-11 rounded-lg border border-[var(--border-subtle)] bg-[var(--hover-bg)] overflow-hidden flex items-center justify-center shrink-0 enabled:cursor-zoom-in enabled:hover:ring-2 enabled:hover:ring-[var(--accent-green)]/40"
-          >
-            {thumb ? (
-              <img src={thumb} alt="" className="w-full h-full object-cover" />
-            ) : ext === "PDF" ? (
-              <FileText className="w-5 h-5 text-[var(--text-muted)]" />
-            ) : (
-              <FileImage className="w-5 h-5 text-[var(--text-muted)]" />
-            )}
-          </button>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-[var(--text-primary)] truncate">{selectedFileName}</p>
-            <p className="text-xs text-[var(--text-muted)] truncate">
-              {isDragActive ? "Drop to replace this bill" : `${ext} · ready to scan`}
-            </p>
-          </div>
-          <span className="hidden sm:inline-flex rounded-full bg-emerald-500/10 text-emerald-500 px-2 py-0.5 text-xs font-medium">Ready</span>
-          {viewable && (
-            <button
-              type="button"
-              onClick={() => setViewerOpen(true)}
-              title="View the uploaded bill"
-              className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer"
-            >
-              <Eye className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-              <span className="hidden sm:inline">View</span>
-            </button>
-          )}
-          {onEnhanceClick && (
-            <button
-              type="button"
-              onClick={() => { if (!enhancing) onEnhanceClick(); }}
-              disabled={enhancing}
-              title="Enhance & clear the bill image before scanning"
-              className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer disabled:opacity-60"
-            >
-              <Sparkles className={`w-3.5 h-3.5 text-[var(--accent-green)] ${enhancing ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">{enhancing ? "Enhancing…" : "Enhance"}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={openPicker}
-            disabled={isLoading}
-            title="Choose a different bill"
-            className="h-8 px-2.5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer disabled:opacity-60"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-            <span className="hidden sm:inline">Replace</span>
-          </button>
-        </div>
-
-        {previewSrc && (
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-primary)] p-3 flex justify-center">
-            <img src={previewSrc} alt="Uploaded bill preview" className="max-h-[380px] w-auto object-contain rounded-md" />
-          </div>
-        )}
-        {rejection && <p className="text-xs text-red-500 whitespace-pre-line">{rejection}</p>}
-
-        {/* Portalled to <body>: the page slides in with a CSS transform, and a
-            transformed ancestor would trap this fixed overlay inside it. */}
-        {createPortal(
-          <AnimatePresence>
-            {viewerOpen && viewable && (
-              <BillViewer src={fileSrc!} name={selectedFileName} onClose={() => setViewerOpen(false)} />
-            )}
-          </AnimatePresence>,
-          document.body,
-        )}
-      </div>
-    );
-  }
 
   // ── Empty drop zone: one illustrated card for single AND batch uploads ──
   // (batch only changes the copy to plural and shows how many are queued).
@@ -403,14 +267,14 @@ export default function Uploader({
       {input}
       <div className="grid md:grid-cols-2 items-center gap-2">
         <UploadIllustration active={isDragActive} />
-        <div className="px-6 pb-6 md:py-6 md:pr-8 md:pl-2 text-center md:text-left">
+        <div className="px-5 py-6 sm:px-6 sm:pt-0 md:py-6 md:pr-8 md:pl-2 text-center md:text-left">
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">
             {isDragActive ? "Drop it here" : multiple ? "Upload several bills" : "Upload your electricity bill"}
           </h3>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             {multiple
               ? "Select or drop many MSEDCL bills — each is analysed separately and all export onto one sheet."
-              : "PDF or a clear photo of an MSEDCL electricity bill."}
+              : "PDF or clear photos of an MSEDCL bill — add the front and back together; they are read as one bill."}
           </p>
           <button
             type="button"
@@ -424,14 +288,23 @@ export default function Uploader({
           <div className="my-3 flex items-center gap-3 text-xs text-[var(--text-muted)]" aria-hidden>
             <span className="h-px flex-1 bg-[var(--border-subtle)]" /> or <span className="h-px flex-1 bg-[var(--border-subtle)]" />
           </div>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-3">
             <button
               type="button"
               onClick={openPicker}
-              className="h-9 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer"
+              className="h-11 sm:h-9 px-4 inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer"
             >
               <FolderOpen className="w-4 h-4 text-[var(--text-muted)]" /> Browse files
             </button>
+            {onCameraClick && (
+              <button
+                type="button"
+                onClick={onCameraClick}
+                className="h-11 sm:h-9 px-4 inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-card)] text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer"
+              >
+                <Camera className="w-4 h-4 text-[var(--text-muted)]" /> Use camera
+              </button>
+            )}
             {/* Batch: the caller passes "N bills queued" as selectedFileName. */}
             {multiple && selectedFileName && (
               <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-[var(--accent-green)]/10 text-[var(--accent-green)]">{selectedFileName}</span>

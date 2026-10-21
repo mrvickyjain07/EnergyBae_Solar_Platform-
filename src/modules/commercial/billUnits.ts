@@ -53,3 +53,19 @@ export function normalizeLoad(value: number | "" | null | undefined, unit: LoadU
       return { ...base, kw: null, method: null, warning: "Load unit not stated — confirm HP, kW or kVA before it is used." };
   }
 }
+
+/**
+ * A load row as printed ("Sanctioned Load : 13.28 HP", "Connected Load (KW): 13.28 HP") → value + unit.
+ * The unit printed AFTER the number wins over one inside the label — MSEDCL prints a "(KW)" label beside
+ * an HP value, and the model kept reporting kW. With no unit after the number, the label's unit is used.
+ */
+export function loadFromPrintedText(text: string | null | undefined): { value: number; unit: LoadUnit } | null {
+  const t = String(text ?? "");
+  const nums = [...t.matchAll(/(\d+(?:\.\d+)?)\s*(h\.?\s?p\.?|horse\s*power|kva|kw)?(?![a-z])/gi)];
+  if (!nums.length) return null;
+  const last = nums[nums.length - 1];
+  const after = last[2] ? parseLoadUnit(last[2]) : "unknown";
+  const labelUnit = t.slice(0, last.index).match(/\(\s*(h\.?\s?p\.?|horse\s*power|kva|kw)\s*\)/i);
+  const unit = after !== "unknown" ? after : labelUnit ? parseLoadUnit(labelUnit[1]) : "unknown";
+  return { value: Number(last[1]), unit };
+}

@@ -43,7 +43,7 @@ check("bill → system prefill", billToSystemInput(v), { name: "Meter 1700123456
 
 // ── Commercial & Industrial (sizing itself is covered end-to-end in billAnalyses.integration.test.ts) ──
 const ci = (data: any, extra: any = {}) => ({ category: "commercial", data: { data, panelWatt: 600, specificYield: 1400, offsetPct: 100, marginPct: 0, systemCost: "", ...extra } });
-// Billing history is kVAh on MSEDCL industrial bills — it must never size the plant; activeKwh does.
+// One printed history month is too few to size on (auto needs 6+), so activeKwh sizes this one.
 const ciBill = { ...buildBlankCommercialBillData(), consumerNo: "111", consumerName: "Shree", connectionType: "LT", billingMonth: "Sep-2026", activeKwh: 6000, kvahReading: 6500, billingHistoryUnit: "kVAh", billingHistory: [{ monthLabel: "Aug-2026", units: 9999, billAmount: 9000 }] };
 const kwOf = (body: any) => (validateBillAnalysis(body) as any).value.recommended_kw;
 check("C&I worksheet missing rejected", err(validateBillAnalysis({ category: "commercial", data: {} })), "The bill analysis is missing.");
@@ -54,8 +54,8 @@ check("unknown connection type blanked", c.data.data.connectionType, "");
 check("boolean fields stay boolean", c.data.data.hasSolar, false);
 check("bad unit / history unit / date blanked", [c.data.data.sanctionedLoadUnit, c.data.data.billingHistoryUnit, c.data.data.readingFrom], ["", "unknown", ""]);
 check("TOD slots normalised to A–D", c.data.data.todSlots, [{ slot: "A", units: "" }, { slot: "B", units: 5 }, { slot: "C", units: "" }, { slot: "D", units: "" }]);
-check("sized on kWh, default 0 % margin: 6000 × 12 ÷ 1400 = 51.43 → 86 × 600 W", kwOf(ci(ciBill)), 51.6);
-check("kVAh history never sizes: no kWh → no recommendation", kwOf(ci({ ...ciBill, activeKwh: "" })), null);
+check("one history month (< 6) → sized on kWh, 0 % margin: 6000 × 12 ÷ 1400 = 51.43 → 86 × 600 W", kwOf(ci(ciBill)), 51.6);
+check("one history month never sizes: no kWh → no recommendation", kwOf(ci({ ...ciBill, activeKwh: "" })), null);
 check("kVAh reading is not used as kWh", kwOf(ci({ ...ciBill, activeKwh: "", kvahReading: 99999 })), null);
 check("optional 10 % margin: 56.57 → 94 × 600 W", kwOf(ci(ciBill, { marginPct: 10 })), 56.4);
 check("editable yield 1200: 60 kWp → 100 × 600 W", kwOf(ci(ciBill, { specificYield: 1200 })), 60);
@@ -64,7 +64,7 @@ check("annualised from reading days: 6000 ÷ 30 × 365 = 73000 → 87 × 600 W",
 check("avg monthly units are kWh", (validateBillAnalysis(ci(ciBill)) as any).value.avg_monthly_units, 6000);
 check("C&I has no phase on the bill", (validateBillAnalysis(ci(ciBill)) as any).value.phase, null);
 const saved = (validateBillAnalysis(ci(ciBill, { specificYield: 1e9, marginPct: -5 })) as any).value.data;
-check("absurd yield / margin fall back to the visible defaults", [saved.specificYield, saved.marginPct], [1400, 0]);
+check("absurd yield / margin fall back to the visible defaults", [saved.specificYield, saved.marginPct], [1400, 10]);
 check("C&I panel wattage used for the system", billPanelWp((validateBillAnalysis(ci(ciBill, { panelWatt: 550 })) as any).value.data), 550);
 const sl = (load: number, unit: string) => (validateBillAnalysis(ci({ ...ciBill, sanctionedLoad: load, sanctionedLoadUnit: unit })) as any).value.sanctioned_load_kw;
 check("sanctioned 200 HP stored as 149.2 kW", sl(200, "HP"), 149.2);

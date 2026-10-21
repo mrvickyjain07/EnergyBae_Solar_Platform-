@@ -1,12 +1,12 @@
 // src/modules/society/societyBatch.ts
 // Housing society, several bills: one bill per meter (common lights, lift,
 // water pump, …). Each meter is sized on its own with the residential
-// worksheet (buildWorksheetModel — avg units ÷ 106.06, panels rounded UP) and
+// worksheet (summariseHistory — avg units ÷ 106.06, panels rounded UP) and
 // the society total is the SUM of the per-meter results — business decision
 // 2026-10-16: each meter can carry its own net-meter, and it matches the
 // worksheet's "Total solar capacity" row. Never re-derive the per-meter math
 // here; read it off the worksheet model so it can't drift from Home/Society.
-import { buildWorksheetModel } from "../../worksheetModel";
+import { summariseHistory } from "../../worksheetModel";
 import type { WorksheetSlot } from "../projects/billAnalysisRules";
 
 /** /api/extract response `data` → the worksheet slot — the same mapping App.tsx uses for a single bill. */
@@ -32,13 +32,10 @@ export function slotFromExtraction(d: any): WorksheetSlot {
 
 export interface MeterSizing { avgUnits: number | null; kw: number; panels: number; capacityKw: number }
 
-/** One meter, read off the residential worksheet model (D22 average, D23 kW, D26 panels, D25 capacity). */
+/** One meter, sized exactly like the residential worksheet (summariseHistory: average ÷ 106.06, panels rounded up). */
 export function sizeMeter(slot: WorksheetSlot, panelWp: number): MeterSizing {
-  const cells = buildWorksheetModel(slot, panelWp).cells;
-  const v = (ref: string) => cells.find((c) => c.ref === ref)?.value;
-  const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
-  const avg = v("D22");
-  return { avgUnits: typeof avg === "number" ? avg : null, kw: num(v("D23")), panels: num(v("D26")), capacityKw: num(v("D25")) };
+  const m = summariseHistory(slot, panelWp);
+  return { avgUnits: m.avgUnits, kw: m.kw, panels: m.panels, capacityKw: m.capacity };
 }
 
 export interface SocietyTotals { meters: number; panels: number; capacityKw: number; avgUnits: number; unsized: number }

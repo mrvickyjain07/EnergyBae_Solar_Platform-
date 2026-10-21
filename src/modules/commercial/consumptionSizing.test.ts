@@ -104,12 +104,13 @@ const asBill = (b: BillPeriod, i: number): CommercialBillData => ({
   billingHistory: i === 5 ? SEP_HISTORY.map((h) => ({ monthLabel: h.month, units: h.units!, billAmount: 1 })) : [],
 });
 const BILLS = SIX.map(asBill);
-const run = (over: Partial<typeof DEFAULT_SIZING> = {}) => analyseCommercial(BILLS.map((d) => ({ data: d, sourceId: d.filename })), { ...DEFAULT_SIZING, ...over });
+// The meter-reading pipeline with no margin (the defaults — 10 % margin, history baseline — are checked separately).
+const run = (over: Partial<typeof DEFAULT_SIZING> = {}) => analyseCommercial(BILLS.map((d) => ({ data: d, sourceId: d.filename })), { ...DEFAULT_SIZING, marginPct: 0, baseline: "meter", ...over });
 const r0 = run();
 const annual = (262524 / 183) * 365;
-check("defaults: 1,400 kWh/kWp/yr yield, 0 % margin, 100 % offset", [DEFAULT_SIZING.specificYield, DEFAULT_SIZING.marginPct, DEFAULT_SIZING.offsetPct], [1400, 0, 100]);
+check("defaults = office workbook: 1,400 kWh/kWp/yr yield, 10 % margin, 100 % offset", [DEFAULT_SIZING.specificYield, DEFAULT_SIZING.marginPct, DEFAULT_SIZING.offsetPct], [1400, 10, 100]);
 check("app pipeline: annualised from 183 reading days", [r0.baseline!.totalDays, near(r0.baseline!.annualKwh, annual)], [183, true]);
-check("default 0 % margin: theoretical = annual ÷ 1400, margin adds nothing", [near(r0.pipeline.theoreticalKwp, annual / 1400), r0.pipeline.marginKwp, near(r0.pipeline.solarCapacityRawKwp, annual / 1400)], [true, 0, true]);
+check("0 % margin: theoretical = annual ÷ 1400, margin adds nothing", [near(r0.pipeline.theoreticalKwp, annual / 1400), r0.pipeline.marginKwp, near(r0.pipeline.solarCapacityRawKwp, annual / 1400)], [true, 0, true]);
 check("523,613 kWh ÷ 1400 = 374.0 kWp → 623 × 600 W = 373.8 kWp", [Math.round(r0.baseline!.annualKwh), Math.round(r0.pipeline.theoreticalKwp), r0.pipeline.fullPanels, r0.pipeline.fullKwp], [523613, 374, 623, 373.8]);
 const r10 = run({ marginPct: 10 });
 check("optional 10 % margin adds exactly 10 % and shows it", [near(r10.pipeline.marginKwp, r0.pipeline.theoreticalKwp * 0.1), near(r10.pipeline.solarCapacityRawKwp, r0.pipeline.theoreticalKwp * 1.1)], [true, true]);
@@ -130,7 +131,7 @@ check("kWh inferred only from the KWH meter readings, labelled", [fromReadings.a
 check("month labels", ["Sep-2026", "Sept 2026", "2026-09", "Sep-26", "xx"].map(toMonthKey), ["2026-09", "2026-09", "2026-09", "2026-09", ""]);
 check("dates: ISO kept, DD/MM/YYYY converted, junk blank", ["2026-09-30", "30/09/2026", "31/02/2026x", ""].map(isoDate), ["2026-09-30", "2026-09-30", "", ""]);
 
-// Extraction sanitizer: units kept as printed; the current month joins the history in its own unit
+// Extraction sanitizer: units kept as printed; the history is the printed months only (own month never added)
 const raw = {
   consumerNo: "17-60", sanctionedLoad: 200, sanctionedLoadUnit: "H.P.", connectedLoad: 200, connectedLoadUnit: "hp", contractDemand: 186,
   prevReading: 13068.23, currReading: 14030.4, multiplyingFactor: 40, kvahReading: 41151, activeKwh: 38487, readingFrom: "31/08/2026", readingTo: "30/09/2026",
@@ -139,13 +140,13 @@ const raw = {
 const sd = sanitizeCommercialData(raw);
 check("sanitizer: load units normalised, value not converted", [sd.sanctionedLoad, sd.sanctionedLoadUnit, sd.connectedLoadUnit, sd.contractDemand], [200, "HP", "HP", 186]);
 check("sanitizer: kWh and kVAh kept apart, dates ISO", [sd.activeKwh, sd.kvahReading, sd.readingFrom, sd.readingTo], [38487, 41151, "2026-08-31", "2026-09-30"]);
-check("sanitizer: current month joins a kVAh history as kVAh", sd.billingHistory.find((r) => r.monthLabel === "Sep-2026")?.units, 41151);
-check("sanitizer: a kWh history gets the kWh figure", sanitizeCommercialData({ ...raw, billingHistoryUnit: "kWh" }).billingHistory.find((r) => r.monthLabel === "Sep-2026")?.units, 38487);
+check("sanitizer: history = printed months only, own month not added", sd.billingHistory.map((r) => [r.monthLabel, r.units]), [["Aug-2026", 54063]]);
+check("sanitizer: kWh history also gets no own-month row", sanitizeCommercialData({ ...raw, billingHistoryUnit: "kWh" }).billingHistory.some((r) => r.monthLabel === "Sep-2026"), false);
 check("sanitizer: unrecognised units blanked", [sanitizeCommercialData({ ...raw, sanctionedLoadUnit: "units" }).sanctionedLoadUnit, sanitizeCommercialData({ ...raw, billingHistoryUnit: "x" }).billingHistoryUnit], ["", "unknown"]);
 const reading = sanitizeCommercialData({ ...raw, kvahReading: 15388.23 }); // the KVAH register reading, not consumption
 check("sanitizer: kVAh below kWh (a register reading) is blanked, not kept", reading.kvahReading, "");
-check("sanitizer: an unknown current kVAh is not merged into the history as 0", reading.billingHistory.some((r) => r.monthLabel === "Sep-2026"), false);
-check("request sizing clamped to the visible defaults", [sizingFrom({}), sizingFrom({ marginPct: 10 }).marginPct, sizingFrom({ marginPct: 500 }).marginPct], [DEFAULT_SIZING, 10, 0]);
+check("sanitizer: an unknown current kVAh adds no history row either", reading.billingHistory.some((r) => r.monthLabel === "Sep-2026"), false);
+check("request sizing clamped to the visible defaults", [sizingFrom({}), sizingFrom({ marginPct: 10 }).marginPct, sizingFrom({ marginPct: 500 }).marginPct], [DEFAULT_SIZING, 10, DEFAULT_SIZING.marginPct]);
 check("pipeline guard: no energy → zeros", computeSizingPipeline({ annualKwh: 0, offsetPct: 100, marginPct: 0, specificYield: 1400, todFraction: 0.5, panelWattage: 600, ratePerKwh: 9, systemCost: 0 }).fullKwp, 0);
 
 console.log(`\n${passed} checks passed.`);

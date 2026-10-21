@@ -57,8 +57,8 @@ export default function BillAnalysisHero({ step, onJumpToUpload, onTrySample, sa
         )}
       </div>
 
-      {/* Photo panel */}
-      <motion.div variants={fadeUp} className="relative h-40 sm:h-44 rounded-2xl overflow-hidden">
+      {/* Photo panel — decorative, so hidden on phones where it would push the upload below the fold. */}
+      <motion.div variants={fadeUp} className="relative hidden sm:block h-44 rounded-2xl overflow-hidden">
         <img src={heroPhoto} alt="" className="ba-photo ba-kenburns absolute inset-0 w-full h-full object-cover" />
         {/* Dusk grade: indigo sky fading to a warm horizon glow. */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#1e1b4b]/60 via-[#4c1d95]/20 to-[#f97316]/25 mix-blend-multiply" aria-hidden />

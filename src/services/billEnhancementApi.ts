@@ -6,12 +6,12 @@
 // the residential and commercial single-bill flows, so it has no one module
 // to belong to.
 //
-// Deliberately does not touch /api/extract: the client sends back a single
-// enhanced file (image or reassembled PDF) in the exact same shape the
-// existing extraction routes already accept, so this route can be added
-// without changing either extraction pipeline.
+// Deliberately does not touch /api/extract: it returns enhanced page images
+// only. The client sends ONE page per request (a whole bill in one body
+// overran Vercel's 4.5 MB cap) and merges the pages it keeps into the scan
+// file itself (src/billPages.ts).
 import type { Express } from "express";
-import { enhancePageBuffer, assessDocumentQuality, assemblePagesIntoPdf } from "./billEnhancement";
+import { enhancePageBuffer, assessDocumentQuality } from "./billEnhancement";
 import { ExtractionUnavailableError } from "./geminiExtraction";
 
 const MAX_PAGE_SIZE_MB = 20;
@@ -25,15 +25,11 @@ function decodePageImage(value: string): Buffer {
 
 export function registerBillEnhanceRoutes(app: Express) {
   app.post("/api/enhance-bill", async (req, res) => {
-    const { fileName, sourceType, pages } = req.body as {
-      fileName?: string;
-      sourceType?: "image" | "pdf";
-      pages?: string[];
-    };
+    const { fileName, pages } = req.body as { fileName?: string; pages?: string[] };
 
     console.log(`[EnergyBae][Enhance] ── New enhancement request ──────────────────`);
     console.log(
-      `[EnergyBae][Enhance] File: "${fileName || "unnamed file"}" | sourceType: ${sourceType} | pages: ${Array.isArray(pages) ? pages.length : 0}`
+      `[EnergyBae][Enhance] File: "${fileName || "unnamed file"}" | pages: ${Array.isArray(pages) ? pages.length : 0}`
     );
 
     if (!Array.isArray(pages) || pages.length === 0) {
@@ -77,26 +73,14 @@ export function registerBillEnhanceRoutes(app: Express) {
         }));
       }
 
-      const isPdf = sourceType === "pdf";
-      const enhancedFile = isPdf
-        ? {
-            base64Data: `data:application/pdf;base64,${(await assemblePagesIntoPdf(enhancedBuffers)).toString("base64")}`,
-            fileName: fileName || "enhanced-bill.pdf",
-          }
-        : {
-            base64Data: `data:image/png;base64,${enhancedBuffers[0].toString("base64")}`,
-            fileName: (fileName || "enhanced-bill").replace(/\.[^.]+$/, "") + ".png",
-          };
-
       res.json({
         success: true,
         overallReady,
         pages: enhancedBuffers.map((buf, i) => ({
-          enhanced: `data:image/png;base64,${buf.toString("base64")}`,
+          enhanced: `data:image/jpeg;base64,${buf.toString("base64")}`,
           ready: perPage[i]?.ready ?? true,
           reasons: perPage[i]?.reasons ?? [],
         })),
-        enhancedFile,
       });
     } catch (error: any) {
       const rawMessage: string = error?.message || String(error);

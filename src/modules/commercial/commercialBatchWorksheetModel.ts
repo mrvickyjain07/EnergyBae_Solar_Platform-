@@ -9,7 +9,7 @@
 import { WorksheetCell } from "../../worksheetModel";
 import { CommercialBillData } from "./types";
 import { buildCommercialWorksheetModel, CommercialSizingInputs } from "./commercialWorksheetModel";
-import { computeBillingStats } from "./commercialCalculations";
+import { computeBillingStats, monthlyFixedOf } from "./commercialCalculations";
 import { analyseCommercial } from "./consumptionSizing";
 
 export const BATCH_SHEET_TITLE = "Batch Bill Analysis";
@@ -53,7 +53,7 @@ const SUMMARY_HEADERS = [
   "Category",
   "Active Energy (kWh, this bill)",
   "Avg Bill Amount (Rs)",
-  "Energy-based kWp (this bill alone)",
+  "Recommended kWp (this bill alone)",
   "Status",
 ];
 
@@ -65,12 +65,12 @@ const hasData = (e: BatchBillEntry): e is BatchBillEntry & { data: CommercialBil
 // Re-uses the same pure calculators the dashboard and single-bill export use, so
 // a summary-row figure can never disagree with the detail block below it.
 function summaryFigures(data: CommercialBillData, sizing: CommercialSizingInputs) {
-  const stats = computeBillingStats(data.billingHistory, data.fixedCharges);
-  const { pipeline, baseline } = analyseCommercial([{ data, sourceId: data.filename || "bill" }], sizing);
+  const stats = computeBillingStats(data.billingHistory, monthlyFixedOf(data));
+  const { pipeline, meterBaseline } = analyseCommercial([{ data, sourceId: data.filename || "bill" }], sizing);
   return {
-    activeKwh: baseline ? baseline.totalKwh : null,
+    activeKwh: meterBaseline ? meterBaseline.totalKwh : null,
     avgBillAmount: stats.avgBillAmount > 0 ? Number(stats.avgBillAmount.toFixed(2)) : null,
-    solarKwp: pipeline.fullKwp > 0 ? Number(pipeline.fullKwp.toFixed(1)) : null,
+    solarKwp: pipeline.recommendedKwp > 0 ? Number(pipeline.recommendedKwp.toFixed(1)) : null,
     billAmount: typeof data.billAmount === "number" ? data.billAmount : 0,
   };
 }
@@ -197,16 +197,19 @@ export function buildCommercialBatchWorksheetModel(
   }
   const b = all.baseline;
   kv("Connection sized", all.history?.connectionId ?? null);
+  kv("Consumption baseline", b ? (b.source === "history" ? "Billing-history average (kWh)" : "Meter readings (active kWh)") : null);
   kv("Valid periods", b ? b.periods : null);
   kv("Total active energy (kWh)", b ? b.totalKwh : null);
   kv("Average per month (kWh)", b ? Number(b.avgMonthlyKwh.toFixed(0)) : null);
   kv(`Annual active energy (kWh, ${b?.annualBasis ?? "-"})`, b ? Number(b.annualKwh.toFixed(0)) : null);
   kv("Assumed annual specific yield (kWh/kWp/yr)", sizing.specificYield);
   kv("Energy offset target (%)", sizing.offsetPct);
-  kv("Additional sizing margin (%)", sizing.marginPct);
-  kv("Theoretical energy-based capacity (kWp)", all.pipeline.fullKwp > 0 ? Number(all.pipeline.fullKwp.toFixed(1)) : null);
-  kv("TOD tariff-band proxy capacity (kWp, low confidence)", all.pipeline.todKwp > 0 ? Number(all.pipeline.todKwp.toFixed(1)) : null);
-  kv("Note", "Preliminary only, not an installable capacity: confirm daytime load, site yield, roof area and the utility's interconnection/export limits before quoting.");
+  kv("Sizing margin (%)", sizing.marginPct);
+  kv("Calculated Solar Capacity (kWp)", all.pipeline.solarCapacityRawKwp > 0 ? Number(all.pipeline.solarCapacityRawKwp.toFixed(3)) : null);
+  kv("TOD Consideration (share +10%)", all.pipeline.todConsideration > 0 ? Number(all.pipeline.todConsideration.toFixed(4)) : null);
+  kv("Recommended Number of Panels", all.pipeline.recommendedPanels > 0 ? all.pipeline.recommendedPanels : null);
+  kv("Recommended Solar Capacity (kWp)", all.pipeline.recommendedKwp > 0 ? Number(all.pipeline.recommendedKwp.toFixed(1)) : null);
+  kv("Note", "Preliminary: confirm roof area, site yield and the utility's interconnection/export limits before quoting.");
 
   return {
     sheetTitle: BATCH_SHEET_TITLE,

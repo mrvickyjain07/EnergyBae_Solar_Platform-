@@ -13,7 +13,6 @@
 // transcribe or restate any value, so it cannot introduce a wrong number
 // either.
 import sharp from "sharp";
-import { PDFDocument } from "pdf-lib";
 import { Type } from "@google/genai";
 import { generateWithGeminiFallback, GEMINI_MODEL } from "./geminiExtraction";
 
@@ -30,9 +29,10 @@ const MIN_DIMENSION_FOR_UPSCALE = 1500;
 //   shadows" in the spec — operates on lightness, so colored stamps/logos
 //   are not desaturated the way a flat grayscale conversion would.
 // sharpen: unsharp-mask-style edge sharpening for text legibility.
-// Output is PNG (lossless) specifically so this step never reintroduces the
-// JPEG compression artifacts that blur the 0-vs-O / 1-vs-I distinctions the
-// spec calls out.
+// Output is high-quality JPEG (q92, no chroma subsampling) rather than PNG:
+// a lossless PNG of an upscaled bill photo is 4–8 MB, over Vercel's 4.5 MB
+// response cap, and the scan had to re-encode it to fit 3 MB anyway. At q92
+// 4:4:4 the 0-vs-O / 1-vs-I strokes survive.
 export async function enhancePageBuffer(buffer: Buffer): Promise<Buffer> {
   const meta = await sharp(buffer).rotate().metadata();
   const width = meta.width || 0;
@@ -62,7 +62,7 @@ export async function enhancePageBuffer(buffer: Buffer): Promise<Buffer> {
     });
   }
 
-  return pipeline.png().toBuffer();
+  return pipeline.jpeg({ quality: 92, chromaSubsampling: "4:4:4" }).toBuffer();
 }
 
 // ── 2. OCR-readiness quality gate ───────────────────────────────────────────
@@ -103,7 +103,7 @@ export interface PageQuality {
 
 export async function assessDocumentQuality(pages: Buffer[]): Promise<{ overallReady: boolean; perPage: PageQuality[] }> {
   const imageParts = pages.map((buf) => ({
-    inlineData: { mimeType: "image/png", data: buf.toString("base64") },
+    inlineData: { mimeType: "image/jpeg", data: buf.toString("base64") },
   }));
   const textPart = { text: QUALITY_PROMPT };
 
@@ -146,21 +146,4 @@ export async function assessDocumentQuality(pages: Buffer[]): Promise<{ overallR
     overallReady: perPage.every((p) => p.ready),
     perPage,
   };
-}
-
-// ── 3. Multi-page reassembly ────────────────────────────────────────────────
-// Only called for scanned/photographed multi-page PDFs. Keeps /api/extract's
-// "one file in" contract untouched instead of teaching it to accept an array
-// of images — Gemini already reads multi-page PDFs natively (see
-// detectPdfPageCount in geminiExtraction.ts), so reassembling into a single
-// PDF here is the smaller, more isolated change.
-export async function assemblePagesIntoPdf(pages: Buffer[]): Promise<Buffer> {
-  const pdfDoc = await PDFDocument.create();
-  for (const pageBuffer of pages) {
-    const png = await pdfDoc.embedPng(pageBuffer);
-    const page = pdfDoc.addPage([png.width, png.height]);
-    page.drawImage(png, { x: 0, y: 0, width: png.width, height: png.height });
-  }
-  const bytes = await pdfDoc.save();
-  return Buffer.from(bytes);
 }

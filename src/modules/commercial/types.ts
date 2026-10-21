@@ -4,6 +4,8 @@
 // data-ocr-field attributes — the UI is the source of truth, not redesigned.
 // Completely separate from the Residential ExtractedBillData (src/types.ts).
 
+import type { ChargeLine, TodRow } from "./chargeMapping";
+
 export interface CommercialBillingHistoryRow {
   monthLabel: string; // e.g. "Jan-26"
   units: number | "";
@@ -86,6 +88,14 @@ export interface CommercialBillData {
   /** "TOTAL CURRENT BILL" — the unrounded sum of this period's charges. */
   currentBillTotal: number | "";
   billAmount: number | ""; // "Total Bill Amount (Rounded)"
+  /** "Amount payable after <due date>" (late fee added) — a different figure from billAmount, never reconciled as the bill total. */
+  amountAfterDue: number | "";
+  /** Evidence: each line of the printed charge block (label + signed amount + the category code assigned). */
+  chargeLines: ChargeLine[];
+  /** Evidence: the printed TOD table rows, with the slot each time band maps to. */
+  todRows: TodRow[];
+  /** "Units" printed on the energy-charge line (what this tariff bills on) — decides the history unit. */
+  billedUnits: number | "";
 
   // Current bill period — used server-side to merge this period into
   // billingHistory as its latest entry (the printed history table on most
@@ -152,6 +162,10 @@ export function buildBlankCommercialBillData(): CommercialBillData {
     otherCharges: "",
     currentBillTotal: "",
     billAmount: "",
+    amountAfterDue: "",
+    chargeLines: [],
+    todRows: [],
+    billedUnits: "",
     billingMonth: "",
     billingHistory: [],
     billingHistoryUnit: "unknown",

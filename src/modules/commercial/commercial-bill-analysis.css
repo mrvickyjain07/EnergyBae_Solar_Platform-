@@ -66,8 +66,7 @@
 .cba .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .cba .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 .cba .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
-@media (max-width:900px){.cba .g3,.cba .g4{grid-template-columns:1fr 1fr;}}
-@media (max-width:640px){.cba .g2,.cba .g3,.cba .g4,.cba .fr2,.cba .fr3{grid-template-columns:1fr;}}
+/* Phone/tablet overrides live at the END of this file — they must come after the base rules they override. */
 
 /* ── Cards — Fundex-style: borderless, 16px radius, separated from the page by colour ── */
 .cba .card{background:var(--card);border-radius:16px;overflow:hidden;}
@@ -173,3 +172,26 @@
 .cba .info-box .hla{color:var(--amber);font-weight:500;}
 .cba .info-box .hlg{color:var(--green);font-weight:500;}
 .cba .info-box .hlp{color:var(--purple);font-weight:500;}
+
+/* ── Phone & tablet ──
+   Last in the file on purpose: same specificity as the base rules, so source
+   order decides (these used to sit above .fr2/.fr3 and silently lost). */
+@media (max-width:900px){.cba .g3,.cba .g4{grid-template-columns:1fr 1fr;}}
+@media (max-width:640px){
+  .cba .g2,.cba .g3,.cba .g4,.cba .fr3{grid-template-columns:1fr;}
+  .cba .fr2{grid-template-columns:1fr 1fr;gap:10px;}
+  .cba .card-h,.cba .card-b{padding:12px 14px;}
+  .cba .card-h{flex-wrap:wrap;}
+  .cba .sec{flex-wrap:wrap;row-gap:6px;}
+  .cba .sec-line{display:none;}
+  .cba .sec-lbl{white-space:normal;}
+  .cba .badge{white-space:normal;}
+  .cba .inp{height:44px;font-size:16px;}            /* 16px stops iOS zooming into a focused field */
+  .cba .cr-inp{height:40px;font-size:16px;width:110px;}
+  .cba .cr-name{min-width:0;}
+  .cba .pipe{display:grid;grid-template-columns:1fr 1fr;overflow:visible;}
+  .cba .ps{min-width:0;border-right:none;border-bottom:1px solid var(--bdr);}
+  .cba .ps:nth-child(odd){border-right:1px solid var(--bdr);}
+  .cba .rv{font-size:24px;}
+  .cba .ocr-fields{margin-left:0;}
+}

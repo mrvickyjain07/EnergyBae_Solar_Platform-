@@ -5,6 +5,7 @@
 // commercialWorksheetModel.ts (Excel export) as the single source of truth —
 // same pattern as src/worksheetModel.ts is for Residential.
 import { CommercialBillData, CommercialBillingHistoryRow, CommercialTodSlotReading, TodSlotId } from "./types";
+import { duplicateAmounts } from "./chargeMapping";
 
 export type TodMode = "LT" | "HT";
 
@@ -92,6 +93,13 @@ export interface BillingStats {
   avgUnitCostRoundUp: number;
 }
 
+/** The monthly charges that don't scale with kWh — printed fixed charges plus demand charges ("" when neither is known).
+ *  The office workbook's "Fixed Charges" cell is this figure (on MSEDCL LT bills it is the Demand Charges line). */
+export function monthlyFixedOf(d: Pick<CommercialBillData, "fixedCharges" | "demandCharges">): number | "" {
+  const f = n(d.fixedCharges) + n(d.demandCharges);
+  return f > 0 ? Math.round(f * 100) / 100 : "";
+}
+
 export function computeBillingStats(
   bRows: CommercialBillingHistoryRow[],
   fixedCharges: number | ""
@@ -157,13 +165,22 @@ export interface TodUtilisation {
   slots: TodSlotResult[];
   totalUnits: number;
   utilisableFraction: number; // B+C share of all TOD units ("TOD Consideration") — a low-confidence proxy
+  /** Blank slots on a bill that has TOD data: the share can't be computed (0) until they're entered. */
+  missing: TodSlotId[];
+  /** The slots add up to neither the bill's kWh nor its kVAh total — a row is misread; no share is computed. */
+  unreconciled: boolean;
 }
+
+/** The bill totals a TOD table must add up to. */
+export const todTotalsOf = (d: Pick<CommercialBillData, "activeKwh" | "kvahReading">) => ({ kwh: n(d.activeKwh), kvah: n(d.kvahReading) });
+/** Within rounding (2 units or 1 %) of a printed total. */
+export const addsUpTo = (sum: number, total: number) => total > 0 && Math.abs(sum - total) <= Math.max(2, total * 0.01);
 
 function todRule(slot: TodSlotId): TodRule {
   return slot === "B" || slot === "C" ? "FULL" : "NONE";
 }
 
-export function computeTodUtilisation(todSlots: CommercialTodSlotReading[], _mode?: TodMode): TodUtilisation {
+export function computeTodUtilisation(todSlots: CommercialTodSlotReading[], _mode?: TodMode, totals?: { kwh: number; kvah: number }): TodUtilisation {
   const totalUnits = todSlots.reduce((s, sl) => s + n(sl.units), 0);
 
   const slots: TodSlotResult[] = todSlots.map((sl) => {
@@ -174,8 +191,14 @@ export function computeTodUtilisation(todSlots: CommercialTodSlotReading[], _mod
     return { slot: sl.slot, units, pctShare, rule, utilisable };
   });
 
-  const utilisableFraction = slots.reduce((s, sl) => s + sl.utilisable, 0);
-  return { slots, totalUnits, utilisableFraction };
+  // A share of an incomplete table is wrong, not "low confidence": no proxy until every slot is read.
+  const missing = totalUnits > 0 ? todSlots.filter((sl) => sl.units === "").map((sl) => sl.slot) : [];
+  // A complete table that doesn't add up to the bill's own total has a misread row (observed: 0/172/331/0
+  // against 878 kWh gave a "100 %" share). Unknown totals can't be checked, so they don't block.
+  const known = !!totals && (totals.kwh > 0 || totals.kvah > 0);
+  const unreconciled = totalUnits > 0 && !missing.length && known && !addsUpTo(totalUnits, totals!.kwh) && !addsUpTo(totalUnits, totals!.kvah);
+  const utilisableFraction = missing.length || unreconciled ? 0 : slots.reduce((s, sl) => s + sl.utilisable, 0);
+  return { slots, totalUnits, utilisableFraction, missing, unreconciled };
 }
 
 // ─── §03 Meter readings ─────────────────────────────────────────────────────
@@ -257,19 +280,22 @@ export function reconcileCharges(c: ChargeComponents): ChargeReconciliation {
 }
 
 // ─── §05 Solar sizing pipeline ──────────────────────────────────────────────
-// Sized on ACTIVE energy (kWh) from the meter table only — never the billing-
-// history "Units", which are billed kVAh on MSEDCL industrial bills. Decided
-// 2026-10-15: no hidden multipliers. The optional, visible "additional sizing
-// margin" (default 0 %) is applied exactly once, kept separate from the
-// energy-offset target; the specific yield is an editable assumption.
-// The primary output is the theoretical energy-based size (fullKwp). The TOD
-// figure is a separate, low-confidence tariff-band proxy, never the recommendation.
+// The office workbook's formula (Metal Junction E-Bill Analysis.xlsx, decided
+// 2026-10-21 — replaces the 2026-10-15 "kWh only, TOD never the answer" rules):
+//   Calculated capacity  = avg printed history units × 12 × (1 + margin) ÷ yield   (D26: ×1.1 ÷ 1400)
+//   TOD consideration    = (slot B + slot C share) × (1 + TOD_UPLIFT)              (K24: ×1.1)
+//   Recommended capacity = TOD consideration × calculated capacity                 (K26)
+//   Panels               = ROUND(capacity ÷ panel W × 1000); kWp = panels × W ÷ 1000 (K28/K29)
+// The margin is the visible "sizing margin" setting (default 10 %). Without a
+// complete TOD table the recommendation is the full calculated capacity.
+export const TOD_UPLIFT = 0.1;
+
 export interface SizingParams {
-  annualKwh: number; // annualised active energy (consumptionSizing.energyBaseline)
+  annualKwh: number; // annualised consumption (consumptionSizing baseline: printed history units or meter kWh)
   offsetPct: number; // share of annual consumption to offset, e.g. 100
-  marginPct: number; // optional additional sizing margin, default 0
+  marginPct: number; // visible sizing margin, default 10 (the workbook's ×1.1)
   specificYield: number; // kWh per kWp per year — assumption, site-specific
-  todFraction: number; // B+C tariff-band share (0 when the bill has no TOD data) — proxy only
+  todFraction: number; // B+C tariff-band share (0 when the bill has no complete TOD data)
   panelWattage: number;
   /** ₹ per active kWh avoided — energyRatePerKwh(); 0 = unknown, no saving shown. */
   ratePerKwh: number;
@@ -282,19 +308,24 @@ export interface SizingPipeline {
   marginKwp: number; // what the optional margin adds (0 by default)
   solarCapacityRawKwp: number; // theoreticalKwp + marginKwp
   fullPanels: number;
-  fullKwp: number; // PRIMARY: theoretical energy-based size in whole panels — preliminary, not installable until surveyed
-  todSolarCapacityKwp: number; // todFraction × solarCapacityRawKwp — tariff-band proxy, low confidence
+  fullKwp: number; // full calculated capacity in whole panels (workbook D26)
+  todConsideration: number; // B+C share × (1 + TOD_UPLIFT) — workbook K24 (0 without a complete TOD table)
+  todSolarCapacityKwp: number; // todConsideration × solarCapacityRawKwp — workbook K26
   todPanels: number;
   todKwp: number;
-  solarGenPerYearKwh: number; // fullKwp × yield
+  /** THE recommendation: the TOD-based size when the bill has a complete TOD table, else the full size. */
+  recommendedPanels: number;
+  recommendedKwp: number;
+  recommendedBasis: "tod" | "full";
+  solarGenPerYearKwh: number; // recommendedKwp × yield
   annualSavingAvgRate: number; // indicative: generation × ratePerKwh
   annualSavingRoundUpRate: number; // generation × ROUNDUP(rate, 0.5)
   simplePaybackYears: number | null;
 }
 
 const ZERO_PIPELINE: SizingPipeline = {
-  targetKwh: 0, theoreticalKwp: 0, marginKwp: 0, solarCapacityRawKwp: 0, fullPanels: 0, fullKwp: 0, todSolarCapacityKwp: 0,
-  todPanels: 0, todKwp: 0, solarGenPerYearKwh: 0, annualSavingAvgRate: 0, annualSavingRoundUpRate: 0, simplePaybackYears: null,
+  targetKwh: 0, theoreticalKwp: 0, marginKwp: 0, solarCapacityRawKwp: 0, fullPanels: 0, fullKwp: 0, todConsideration: 0, todSolarCapacityKwp: 0,
+  todPanels: 0, todKwp: 0, recommendedPanels: 0, recommendedKwp: 0, recommendedBasis: "full", solarGenPerYearKwh: 0, annualSavingAvgRate: 0, annualSavingRoundUpRate: 0, simplePaybackYears: null,
 };
 
 export function computeSizingPipeline(p: SizingParams): SizingPipeline {
@@ -311,18 +342,23 @@ export function computeSizingPipeline(p: SizingParams): SizingPipeline {
   const fullPanels = Math.round((solarCapacityRawKwp / panW) * 1000);
   const fullKwp = (fullPanels * panW) / 1000;
 
-  const todSolarCapacityKwp = (p.todFraction > 0 ? p.todFraction : 0) * solarCapacityRawKwp;
+  const todConsideration = p.todFraction > 0 ? p.todFraction * (1 + TOD_UPLIFT) : 0;
+  const todSolarCapacityKwp = todConsideration * solarCapacityRawKwp;
   const todPanels = Math.round((todSolarCapacityKwp / panW) * 1000);
   const todKwp = (todPanels * panW) / 1000;
+  const byTod = todPanels > 0;
+  const recommendedPanels = byTod ? todPanels : fullPanels;
+  const recommendedKwp = byTod ? todKwp : fullKwp;
 
   const rate = p.ratePerKwh > 0 ? p.ratePerKwh : 0;
-  const solarGenPerYearKwh = fullKwp * p.specificYield;
+  const solarGenPerYearKwh = recommendedKwp * p.specificYield;
   const annualSavingAvgRate = solarGenPerYearKwh * rate;
   const annualSavingRoundUpRate = solarGenPerYearKwh * roundUp05(rate);
   const simplePaybackYears = p.systemCost > 0 && annualSavingAvgRate > 0 ? p.systemCost / annualSavingAvgRate : null;
 
   return {
-    targetKwh, theoreticalKwp, marginKwp, solarCapacityRawKwp, fullPanels, fullKwp, todSolarCapacityKwp, todPanels, todKwp,
+    targetKwh, theoreticalKwp, marginKwp, solarCapacityRawKwp, fullPanels, fullKwp, todConsideration, todSolarCapacityKwp, todPanels, todKwp,
+    recommendedPanels, recommendedKwp, recommendedBasis: byTod ? "tod" : "full",
     solarGenPerYearKwh, annualSavingAvgRate, annualSavingRoundUpRate, simplePaybackYears,
   };
 }
@@ -359,8 +395,14 @@ export interface SizingSettings {
   offsetPct: number;
   marginPct: number;
   systemCost: number | "";
+  /** Which consumption the plant is sized on — see consumptionSizing.chooseBaseline. */
+  baseline?: BaselineStrategy; // missing (older saves) = "auto"
 }
-export const DEFAULT_SIZING: SizingSettings = { panelWatt: 600, specificYield: 1400, offsetPct: 100, marginPct: 0, systemCost: "" };
+/** "meter": this bill's (or the uploaded bills') active kWh. "history": the printed billing-history months as printed
+ *  (kWh or billed kVAh — the workbook averages them as-is). "auto": history when it holds >= 6 months and more
+ *  months than the uploaded bills, else meter. */
+export type BaselineStrategy = "auto" | "meter" | "history";
+export const DEFAULT_SIZING: SizingSettings = { panelWatt: 600, specificYield: 1400, offsetPct: 100, marginPct: 10, systemCost: "", baseline: "auto" };
 
 /** Sizing settings from a request body, each clamped to a sane range; missing → the on-screen default. */
 export function sizingFrom(raw: any): SizingSettings {
@@ -375,6 +417,7 @@ export function sizingFrom(raw: any): SizingSettings {
     offsetPct: num(raw?.offsetPct, 1, 300, DEFAULT_SIZING.offsetPct),
     marginPct: num(raw?.marginPct, 0, 100, DEFAULT_SIZING.marginPct),
     systemCost: Number.isFinite(cost) && cost > 0 ? cost : "",
+    baseline: raw?.baseline === "meter" || raw?.baseline === "history" ? raw.baseline : "auto",
   };
 }
 
@@ -399,7 +442,9 @@ export function computeValidationChecks(
   tod: TodUtilisation,
   meter: MeterDerived,
   recon: ChargeReconciliation,
-  d: CommercialBillData
+  d: CommercialBillData,
+  /** True when the sizing baseline is the billing-history average (consumptionSizing). */
+  historySized = false
 ): ValidationCheck[] {
   const checks: ValidationCheck[] = [];
   const kwh = n(d.activeKwh);
@@ -427,13 +472,31 @@ export function computeValidationChecks(
   }
 
   const hu = d.billingHistoryUnit === "unknown" ? "UNIT UNKNOWN" : d.billingHistoryUnit;
-  checks.push({ label: `${stats.validCount} HISTORY MONTHS (${hu}) · REFERENCE ONLY, NOT SIZED`, status: stats.validCount > 0 ? "ok" : "warn" });
-  if (stats.rows.some((r) => r.isOutlier)) checks.push({ label: "OUTLIER IN HISTORY — REVIEW (SHOWN, NOT SIZED)", status: "warn" });
+  checks.push({ label: `${stats.validCount} HISTORY MONTHS (${hu}) · ${historySized ? "SIZING BASELINE" : "REFERENCE ONLY, NOT SIZED"}`, status: stats.validCount > 0 ? "ok" : "warn" });
+  if (stats.rows.some((r) => r.isOutlier)) checks.push({ label: `OUTLIER IN HISTORY — REVIEW (${historySized ? "KEPT IN THE AVERAGE" : "SHOWN, NOT SIZED"})`, status: "warn" });
+  if (tod.missing.length) checks.push({ label: `TOD SLOT ${tod.missing.join(", ")} BLANK — SLOTS DON'T ADD UP TO THE kWh/kVAh TOTAL; ENTER FROM THE BILL`, status: "err" });
 
-  if (tod.totalUnits > 0) {
-    const unit = kvah > 0 && near(tod.totalUnits, kvah) ? "kVAh" : kwh > 0 && near(tod.totalUnits, kwh) ? "kWh" : null;
-    checks.push(unit ? { label: `TOD UNITS = ${unit} TOTAL`, status: "ok" } : { label: "TOD UNITS MATCH NEITHER kWh NOR kVAh TOTAL", status: "warn" });
+  if (tod.totalUnits > 0 && !tod.missing.length) {
+    const unit = addsUpTo(tod.totalUnits, kvah) ? "kVAh" : addsUpTo(tod.totalUnits, kwh) ? "kWh" : null;
+    checks.push(unit ? { label: `TOD UNITS = ${unit} TOTAL`, status: "ok" }
+      : { label: `TOD SLOTS ADD UP TO ${Math.round(tod.totalUnits)} — NEITHER kWh NOR kVAh TOTAL; A ROW IS MISREAD, NO TOD % SHOWN`, status: "err" });
   }
+  // The TOD table's own charges must add up to the "TOD Tariff EC" line — catches a shifted charge column.
+  const rowCharges = (d.todRows ?? []).filter((r) => typeof r.charge === "number");
+  if (rowCharges.length && typeof d.todCharges === "number") {
+    const sum = Math.round(rowCharges.reduce((s, r) => s + (r.charge as number), 0) * 100) / 100;
+    if (Math.abs(sum - d.todCharges) > 1) checks.push({ label: `TOD TABLE CHARGES ₹${sum} ≠ TOD TARIFF EC LINE ₹${d.todCharges} — CHECK BOTH`, status: "warn" });
+  }
+  const unbanded = (d.todRows ?? []).filter((r) => r.slot === null);
+  if (unbanded.length) checks.push({ label: `TOD BAND ${unbanded.map((r) => r.timeRange).join(", ")} ISN'T ONE OF THE 4 SLOTS — NOT USED`, status: "warn" });
+  const billed = n(d.billedUnits);
+  if (billed > 0 && !near(billed, kwh) && !near(billed, kvah)) {
+    checks.push({ label: `BILLED UNITS ${Math.round(billed)} MATCH NEITHER kWh ${Math.round(kwh)} NOR kVAh ${Math.round(kvah)} — CHECK THE METER TABLE`, status: "err" });
+  }
+  const lines = d.chargeLines ?? [];
+  const unmapped = lines.filter((l) => l.category === "unmapped" && l.amount !== 0);
+  if (unmapped.length) checks.push({ label: `UNRECOGNISED CHARGE LINE${unmapped.length > 1 ? "S" : ""}: ${unmapped.map((l) => `"${l.label}" ₹${l.amount}`).join(", ")} — NOT IN ANY TOTAL, REVIEW`, status: "warn" });
+  for (const dup of duplicateAmounts(lines)) checks.push({ label: `${dup.toUpperCase()} — ONE MAY BE READ FROM THE WRONG ROW`, status: "warn" });
 
   if (recon.currentOk !== null) {
     checks.push({ label: recon.currentOk ? "CHARGES = TOTAL CURRENT BILL" : `CHARGES ≠ TOTAL CURRENT BILL (₹${recon.currentDiff})`, status: recon.currentOk ? "ok" : "err" });
@@ -441,10 +504,17 @@ export function computeValidationChecks(
   if (recon.printedAmount > 0) {
     checks.push({ label: recon.withinTolerance ? "ROUNDED BILL RECONCILED" : `BILL MISMATCH ₹${recon.diff}`, status: recon.withinTolerance ? "ok" : "err" });
   }
+  const afterDue = n(d.amountAfterDue);
+  if (afterDue > 0 && n(d.billAmount) === afterDue) checks.push({ label: "BILL AMOUNT = AMOUNT PAYABLE AFTER DUE DATE — ENTER 'TOTAL BILL AMOUNT (ROUNDED)'", status: "err" });
+  else if (afterDue > 0 && !(n(d.billAmount) > 0)) checks.push({ label: "BILL AMOUNT BLANK — ENTER 'TOTAL BILL AMOUNT (ROUNDED)', NOT THE AFTER-DUE AMOUNT", status: "warn" });
+  // FAC is printed on almost every MSEDCL bill; an empty FAC beside a non-zero "other" is the usual mis-assignment.
+  if (!(n(d.fac) > 0) && n(d.otherCharges) > 0) checks.push({ label: "FAC BLANK BUT OTHER CHARGES SET — IS 'OTHER' THE FAC LINE? (IT CHANGES THE ENERGY RATE)", status: "warn" });
 
   checks.push({
-    label: tod.utilisableFraction > 0 ? `TOD BAND PROXY ${(tod.utilisableFraction * 100).toFixed(2)}% · LOW CONFIDENCE` : "NO TOD DATA",
-    status: tod.utilisableFraction > 0 ? "warn" : "ok",
+    label: tod.utilisableFraction > 0
+      ? `TOD SHARE ${(tod.utilisableFraction * 100).toFixed(2)}% +10% = ${(tod.utilisableFraction * (1 + TOD_UPLIFT) * 100).toFixed(2)}% · USED FOR THE RECOMMENDED SIZE`
+      : "NO TOD DATA — RECOMMENDED SIZE = FULL CALCULATED CAPACITY",
+    status: "ok",
   });
 
   return checks;
