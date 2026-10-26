@@ -16,6 +16,7 @@ import {
 import CommandPalette, { NavTarget } from "./CommandPalette";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
+import { useOrganization } from "../contexts/OrganizationContext";
 import { buildNotifications, AppNotification, FeedProposal } from "../notifications";
 import { timeAgo } from "../overviewStats";
 
@@ -67,7 +68,7 @@ export function initialsOf(name: string) {
   return name.split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
 }
 
-// ── Notifications ──────────────────────────────────────────────────────────
+// ── Notifications ─────────────────────────────────────────────────────────────
 function NotificationsMenu({ items, storageScope, onOpenItem }: { items: AppNotification[]; storageScope: string; onOpenItem: (n: AppNotification) => void }) {
   // Per user AND company — proposal numbers are only unique within a company.
   const storageKey = `energybae-read-notifications:${storageScope}`;
@@ -146,9 +147,10 @@ function NotificationsMenu({ items, storageScope, onOpenItem }: { items: AppNoti
 }
 
 
-// ── Profile ────────────────────────────────────────────────────────────────
+// ── Profile ───────────────────────────────────────────────────────────────
 function ProfileMenu({ onOpenSettings, onOpenUsers }: { onOpenSettings: () => void; onOpenUsers: () => void }) {
   const { user, switchOrganization, can } = useAuth();
+  const { org } = useOrganization();
   const [open, setOpen] = useState(false);
   const [switching, setSwitching] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
@@ -169,6 +171,8 @@ function ProfileMenu({ onOpenSettings, onOpenUsers }: { onOpenSettings: () => vo
   };
 
   const item = "w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-[var(--text-primary)] hover:bg-[var(--hover-bg)] cursor-pointer";
+  const helpEmail = org?.email || "info@energybae.in";
+
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Account menu" aria-expanded={open}
@@ -224,7 +228,7 @@ function ProfileMenu({ onOpenSettings, onOpenUsers }: { onOpenSettings: () => vo
                 <Users className="w-4 h-4 text-[var(--text-muted)]" /> Team
               </button>
             )}
-            <a href="mailto:info@energybae.in" className={item} onClick={() => setOpen(false)}>
+            <a href={`mailto:${helpEmail}`} className={item} onClick={() => setOpen(false)}>
               <LifeBuoy className="w-4 h-4 text-[var(--text-muted)]" /> Help &amp; support
             </a>
           </motion.div>
@@ -234,7 +238,7 @@ function ProfileMenu({ onOpenSettings, onOpenUsers }: { onOpenSettings: () => vo
   );
 }
 
-// ── Bar ────────────────────────────────────────────────────────────────────
+// ── Bar ────────────────────────────────────────────────────────────────
 export default function Navbar({ route, onGo, onOpenReviews, onOpenMobileMenu, proposals, onOpenProposal, breadcrumb, onNavigate }: NavbarProps) {
   const meta = ROUTES[route];
   const { theme, toggleTheme } = useTheme();
