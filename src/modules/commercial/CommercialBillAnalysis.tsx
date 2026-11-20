@@ -61,7 +61,15 @@ const fmtNum = (n: number) => Math.round(n).toLocaleString("en-IN");
 const pct = (n: number, places = 2) => `${(n * 100).toFixed(places)}%`;
 
 function numOrBlank(v: number | "" | undefined): string {
-  return v === "" || v === undefined ? "" : String(v);
+  return v === "" || v === undefined || Number.isNaN(v) ? "" : String(v);
+}
+
+// Typed text → number, ignoring commas/letters (e.g. "1,094" or autocorrect junk),
+// so a history cell can never hold NaN and lock up.
+function toNumOrBlank(s: string): number | "" {
+  const t = s.replace(/[^\d.]/g, "");
+  const n = Number(t);
+  return t === "" || !Number.isFinite(n) ? "" : n;
 }
 
 /** A bill handed in by the unified Bill Analysis page (App.tsx). `nonce`
@@ -179,7 +187,7 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
     setData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const updateBillRow = (idx: number, key: "units" | "billAmount", value: number | "") => {
+  const updateBillRow = (idx: number, key: "monthLabel" | "units" | "billAmount", value: number | string) => {
     setData((prev) => {
       const rows = [...prev.billingHistory];
       rows[idx] = { ...rows[idx], [key]: value };
@@ -482,12 +490,14 @@ export default function CommercialBillAnalysis({ externalFile, hideUploader, onR
                     return (
                       <tr key={idx} className={rowClass}>
                         <td className="cm" style={{ fontSize: 11 }}>{idx + 1}</td>
-                        <td style={{ fontSize: 12, color: isCurrent ? "var(--cyan)" : "var(--txt)" }}>{row.monthLabel}</td>
-                        <td className="r">
-                          <input className="ti" placeholder="--" value={numOrBlank(row.units)} onChange={(e) => updateBillRow(idx, "units", e.target.value === "" ? "" : Number(e.target.value))} />
+                        <td style={{ fontSize: 12, color: isCurrent ? "var(--cyan)" : "var(--txt)" }}>
+                          <input className="ti" style={{ textAlign: "left", color: "inherit" }} placeholder="e.g. Oct-2025" aria-label="Month" value={row.monthLabel} onChange={(e) => updateBillRow(idx, "monthLabel", e.target.value)} />
                         </td>
                         <td className="r">
-                          <input className="ti" placeholder="--" value={numOrBlank(row.billAmount)} onChange={(e) => updateBillRow(idx, "billAmount", e.target.value === "" ? "" : Number(e.target.value))} />
+                          <input className="ti" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="--" value={numOrBlank(row.units)} onChange={(e) => updateBillRow(idx, "units", toNumOrBlank(e.target.value))} />
+                        </td>
+                        <td className="r">
+                          <input className="ti" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="--" value={numOrBlank(row.billAmount)} onChange={(e) => updateBillRow(idx, "billAmount", toNumOrBlank(e.target.value))} />
                         </td>
                         <td className={`r ${flags?.unitCost !== null && flags?.unitCost !== undefined ? "cc" : "cm"}`}>
                           {flags?.unitCost !== null && flags?.unitCost !== undefined ? `₹${flags.unitCost.toFixed(4)}` : "--"}
