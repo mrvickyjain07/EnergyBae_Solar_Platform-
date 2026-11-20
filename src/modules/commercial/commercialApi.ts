@@ -741,7 +741,12 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
       for (const cell of model.cells) {
         const rowNum = Number(cell.ref.match(/\d+/)?.[0] || 1);
         if (rowNum > maxRow) maxRow = rowNum;
-        if (typeof cell.value === "number") {
+        if (cell.formula) {
+          ws[cell.ref] = { t: 'n', f: cell.formula };
+          if (cell.value !== undefined && cell.value !== null) {
+            ws[cell.ref].v = cell.value;
+          }
+        } else if (typeof cell.value === "number") {
           ws[cell.ref] = { t: "n", v: cell.value };
         } else if (cell.value === null || cell.value === undefined) {
           ws[cell.ref] = { t: "s", v: "" };
@@ -800,10 +805,17 @@ export function registerCommercialRoutes(app: Express, deps: CommercialApiDeps) 
 
       const ws: any = {};
       for (const cell of model.cells) {
-        const out: any =
-          typeof cell.value === "number"
-            ? { t: "n", v: cell.value }
-            : { t: "s", v: cell.value === null || cell.value === undefined ? "" : String(cell.value) };
+        let out: any;
+        if (cell.formula) {
+          out = { t: "n", f: cell.formula };
+          if (cell.value !== undefined && cell.value !== null) {
+            out.v = cell.value;
+          }
+        } else if (typeof cell.value === "number") {
+          out = { t: "n", v: cell.value };
+        } else {
+          out = { t: "s", v: cell.value === null || cell.value === undefined ? "" : String(cell.value) };
+        }
 
         if (cell.bold || cell.fill) {
           const onDark = cell.fill === BATCH_HEADER_FILL;

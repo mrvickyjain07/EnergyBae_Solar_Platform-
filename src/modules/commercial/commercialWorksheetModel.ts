@@ -28,10 +28,12 @@ export function buildCommercialWorksheetModel(
   startRow = 1
 ): WorksheetModel {
   const cells: WorksheetCell[] = [];
-  const set = (ref: string, value: string | number | null) => cells.push({ ref, value });
+  const set = (ref: string, value: string | number | null, formula?: string) =>
+    cells.push(formula ? { ref, value, formula } : { ref, value });
 
   const todMode = detectTodMode(data.connectionType);
-  const stats = computeBillingStats(data.billingHistory, monthlyFixedOf(data));
+  const monthlyFixed = monthlyFixedOf(data);
+  const stats = computeBillingStats(data.billingHistory, monthlyFixed);
   const tod = computeTodUtilisation(data.todSlots, undefined, todTotalsOf(data));
   const meter = computeMeterDerived(data);
   const recon = reconcileCharges(data);
@@ -42,7 +44,7 @@ export function buildCommercialWorksheetModel(
   let row = startRow;
   const blank = () => { row += 1; };
   const heading = (text: string) => { set(`A${row}`, text); row += 1; };
-  const kv = (label: string, value: string | number | null) => { set(`A${row}`, label); set(`B${row}`, value); row += 1; };
+  const kv = (label: string, value: string | number | null, formula?: string) => { set(`A${row}`, label); set(`B${row}`, value, formula); row += 1; };
   const num = (v: number | "" | undefined) => (typeof v === "number" ? v : null);
 
   // ── Section 1: Consumer Details ─────────────────────────────────────────
@@ -98,6 +100,7 @@ export function buildCommercialWorksheetModel(
   kv("History units (reference only, not used for sizing)", hu);
   set(`A${row}`, "Sr.No"); set(`B${row}`, "Month"); set(`C${row}`, `Units (${hu})`); set(`D${row}`, "Bill Amount (Rs)"); set(`E${row}`, "Bill / units (all-in ratio, not an energy rate)"); set(`F${row}`, "Status");
   row += 1;
+  const histFirstRow = row; // first data row of the history table
   data.billingHistory.forEach((r, idx) => {
     const flags = stats.rows[idx];
     const isCurrent = idx === data.billingHistory.length - 1;
@@ -105,13 +108,35 @@ export function buildCommercialWorksheetModel(
     set(`B${row}`, r.monthLabel || null);
     set(`C${row}`, num(r.units));
     set(`D${row}`, num(r.billAmount));
-    set(`E${row}`, flags?.unitCost !== null && flags?.unitCost !== undefined ? Number(flags.unitCost.toFixed(4)) : null);
+    // Unit cost with dynamic formula: IF(AND(C>0,D>0),(D-fixed)/C,"")
+    const fixedRef = monthlyFixed !== "" ? String(monthlyFixed) : "0";
+    set(`E${row}`,
+      flags?.unitCost !== null && flags?.unitCost !== undefined ? Number(flags.unitCost.toFixed(4)) : null,
+      `IF(AND(N(C${row})>0,N(D${row})>0),(D${row}-${fixedRef})/C${row},"")`
+    );
     set(`F${row}`, isCurrent ? "CURRENT" : flags?.isOutlier ? "OUTLIER" : flags?.isDemandOnly ? "DEMAND ONLY" : flags?.isZero ? "ZERO" : null);
     row += 1;
   });
-  kv("Average Units (valid months)", stats.avgUnits > 0 ? Number(stats.avgUnits.toFixed(2)) : null);
-  kv("Average Bill Amount", stats.avgBillAmount > 0 ? Number(stats.avgBillAmount.toFixed(2)) : null);
-  kv("Average bill / units (all-in ratio)", stats.avgUnitCost > 0 ? Number(stats.avgUnitCost.toFixed(4)) : null);
+  const histLastRow = row - 1; // last data row of the history table
+  // Average with dynamic AVERAGEIF formulas — auto-recalculate when rows change
+  set(`A${row}`, "Average Units (valid months)");
+  set(`B${row}`,
+    stats.avgUnits > 0 ? Number(stats.avgUnits.toFixed(2)) : null,
+    `AVERAGEIF(C${histFirstRow}:C${histLastRow},">0")`
+  );
+  row += 1;
+  set(`A${row}`, "Average Bill Amount");
+  set(`B${row}`,
+    stats.avgBillAmount > 0 ? Number(stats.avgBillAmount.toFixed(2)) : null,
+    `AVERAGEIF(D${histFirstRow}:D${histLastRow},">0")`
+  );
+  row += 1;
+  set(`A${row}`, "Average bill / units (all-in ratio)");
+  set(`B${row}`,
+    stats.avgUnitCost > 0 ? Number(stats.avgUnitCost.toFixed(4)) : null,
+    `IFERROR(AVERAGE(E${histFirstRow}:E${histLastRow}),"")`
+  );
+  row += 1;
   kv("History months with units", stats.validCount);
   blank();
 
