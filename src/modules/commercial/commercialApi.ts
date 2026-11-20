@@ -175,9 +175,12 @@ BILLING HISTORY (every month printed on the bill — commonly 12 or 13 rows, som
     has one (columns commonly: Bill / Units / Bill Demand / Bill Amount). Include EVERY row printed in that
     table — do not cap at 12 or drop the oldest rows if there are 13+. monthLabel format: "Mon-YYYY" with a
     FULL 4-digit year exactly as printed (e.g. "Jan-2026", not "Jan-26"). units = consumption in kWh/kVAh for
-    that month. billAmount = that month's net billed amount (never arrears/security deposit). Do NOT include
-    the bill's own current period in this array unless it is printed as a row of that table — it is captured
-    separately by fields 35/36/31 below.
+    that month. billAmount = that month's net billed amount (never arrears/security deposit) ONLY if the table
+    has a bill-amount (₹) column; otherwise 0. Solar net-meter bills print IMP / EXP / GEN columns — units = IMP
+    (import); EXP and GEN are energy, NEVER a bill amount. ALSO include any other past month printed elsewhere
+    on the bill with its consumption, e.g. a year-ago comparison box ("वीज वापर" / "Consumption" showing
+    "ऑक्टोबर 2025 1094 / ऑक्टोबर 2026 2337") — add each of those months as a row too, even when one of
+    them is the bill's own month. Otherwise do NOT add the bill's own month (it lives in the meter fields).
 32a. billingHistoryUnit — what that table's "Units" measure. Compare this bill's own billed units (the "Units"
     in the Consumption / charge block) with the KWH and KVAH "Total Consumption": if they equal the KVAH total
     the tariff bills on kVAh and the history is "kVAh"; if they equal the KWH total it is "kWh"; otherwise
@@ -476,10 +479,12 @@ export function sanitizeCommercialData(raw: any): CommercialBillData {
   const billedUnits = toNum(raw.billedUnits);
   const billingHistoryUnit = historyUnitFrom(billedUnits, activeKwh, kvahReading, claimedUnit);
 
-  // Billing history = exactly the months printed in the bill's BILLING HISTORY
-  // table. The bill's own month is NOT added (decided 2026-10-21 — the office
-  // workbook averages the printed months only); its figures stay in the meter
-  // fields above.
+  // Billing history = every month PRINTED as monthly consumption on the bill:
+  // the history table plus any year-ago comparison box (MSEDCL "वीज वापर"),
+  // which the prompt asks for. The server never adds the bill's own month from
+  // the meter fields. Both office workbooks agree: Metal Junction (2026-10-21)
+  // = its 13 table months; Kalash Mahajan (2026-11-20) = 11 table months +
+  // Oct-2025/Oct-2026 from the comparison box = 13.
   const billingHistory = buildBillingHistoryWindow(printedHistory);
   const kwhFromReadings = currReading > prevReading ? (currReading - prevReading) * multiplyingFactor : 0;
 

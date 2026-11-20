@@ -36,8 +36,10 @@ exact list of differences. Rules specific to this copy:
 - Gemini calls go through `generateWithGeminiFallback` (key → backup key →
   `GEMINI_FALLBACK_MODEL`); pass its `model` argument, never a literal.
 - **Billing history rule, ALL bills (Home, Society, C&I — 2026-10-21):** averages
-  use exactly the months printed in the bill's history table (12, 13, any count);
-  the bill's own month is never added. Home/Society figures come only from
+  use exactly the months printed on the bill as monthly consumption — the history
+  table PLUS any year-ago comparison box (MSEDCL "वीज वापर", 2026-11-20, Kalash
+  Mahajan workbook = 13 months); the server never adds the bill's own month from
+  the meter fields. Solar net-meter tables: units = IMP; EXP/GEN are never bill amounts. Home/Society figures come only from
   `summariseHistory` (`worksheetModel.ts`): unread months are skipped, not 0, and
   unit cost = (bill − fixed charges) ÷ units, as in the office workbook. Pinned
   by `src/billingHistoryAverage.test.ts`.

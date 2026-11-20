@@ -1,0 +1,4 @@
+# Customer bills / analyses dropped in this folder must never ship in a deploy upload.
+*.xlsx
+*.pdf
+.env*
