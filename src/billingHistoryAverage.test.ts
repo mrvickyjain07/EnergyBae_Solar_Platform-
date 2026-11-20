@@ -64,25 +64,24 @@ close("C&I: TOD capacity (K26)", sized.pipeline.todSolarCapacityKwp, 239.355, 0.
 close("C&I: Number of Panels (K29)", sized.pipeline.recommendedPanels, 399, 0);
 close("C&I: Actual Solar capacity (K28)", sized.pipeline.recommendedKwp, 239.4, 1e-9);
 
-// KALASH MAHAJAN (410016321935, MSEDCL LT solar net-meter, Oct-2026 bill) — office workbook
-// "Kalash Mahajan- Bill Analysis.xlsx" (2026-11-20): 11 IMP months from the history table + the
-// "वीज वापर" comparison box (Oct-2025 1094, Oct-2026 2337) = 13 printed months; no bill-amount column.
-// AVERAGE = 1218.08 → 11.48 kW → ROUND(19.14) = 19 panels → 11.4 kWp.
+// KALASH MAHAJAN (410016321935, MSEDCL LT solar net-meter, Oct-2026 bill): the history table's
+// 11 IMP months only (2026-11-20 — the "वीज वापर" box and the bill's own month are not used);
+// no bill-amount column. AVERAGE = 1127.64 → 10.63 kW → ROUND(17.72) = 18 panels → 10.8 kWp.
 const kalashPrinted: [string, number][] = [
-  ["Oct-2025", 1094], ["Nov-2025", 1087], ["Dec-2025", 817], ["Jan-2026", 772], ["Feb-2026", 969],
+  ["Nov-2025", 1087], ["Dec-2025", 817], ["Jan-2026", 772], ["Feb-2026", 969],
   ["Mar-2026", 1126], ["Apr-2026", 719], ["May-2026", 1665], ["Jun-2026", 1445], ["Jul-2026", 1430],
-  ["Aug-2026", 1364], ["Sep-2026", 1010], ["Oct-2026", 2337],
+  ["Aug-2026", 1364], ["Sep-2026", 1010],
 ];
 const kalash = sanitizeCommercialData({
   consumerNo: "410016321935", connectionType: "LT", billingMonth: "Oct-2026", billingHistoryUnit: "kWh",
   activeKwh: 2337, billedUnits: 2337, billAmount: 31330, fixedCharges: 540, todSlots: [],
   billingHistory: kalashPrinted.map(([monthLabel, units]) => ({ monthLabel, units, billAmount: 0 })),
 });
-assert.equal(kalash.billingHistory.length, 13); passed++;
-console.log("  ok — Kalash: comparison-box months kept → 13 months");
+assert.equal(kalash.billingHistory.length, 11); passed++;
+console.log("  ok — Kalash: the 11 history-table months, nothing added");
 const kSized = analyseCommercial([{ data: kalash, sourceId: "410016321935.pdf" }], DEFAULT_SIZING);
-close("Kalash: average units (workbook D25)", kSized.baseline?.avgMonthlyKwh ?? null, 1218.077, 0.001);
-close("Kalash: panels (workbook D29)", kSized.pipeline.recommendedPanels, 19, 0);
-close("Kalash: solar capacity (workbook D28)", kSized.pipeline.recommendedKwp, 11.4, 1e-9);
+close("Kalash: average units", kSized.baseline?.avgMonthlyKwh ?? null, 1127.636, 0.001);
+close("Kalash: panels", kSized.pipeline.recommendedPanels, 18, 0);
+close("Kalash: solar capacity", kSized.pipeline.recommendedKwp, 10.8, 1e-9);
 
 console.log(`\n${passed} checks passed.`);
